@@ -1,5 +1,5 @@
 #summary Post your export Templates here
-#labels ExportTemplate,Featured
+#labels Featured
 
 = Export Templates =
 
