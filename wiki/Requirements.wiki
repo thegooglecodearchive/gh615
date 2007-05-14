@@ -1,6 +1,4 @@
 #labels Phase-Requirements
-#other software this project depends on
-
 = Requirements =
 
 To use the python sources you need to have the following libraries installed
@@ -13,4 +11,3 @@ To use the python sources you need to have the following libraries installed
 
   * [http://lucumr.pocoo.org/articles/simple-templates-in-python stpy for export templates]
   * [http://www.py2exe.org/ py2exe for exe-builds]
-
