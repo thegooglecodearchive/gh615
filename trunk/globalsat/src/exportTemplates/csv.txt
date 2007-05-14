@@ -1,0 +1,4 @@
+latitude, longitude, altitude, speed, date, heartrate
+<? for trackpoint in trackpoints: ?>
+<?= trackpoint['latitude'] ?>, <?= trackpoint['longitude'] ?>, <?= trackpoint['altitude'] ?>, <?= trackpoint['speed'] ?>, <?= trackpoint['date'] ?>, <?= trackpoint['heartrate'] ?>
+<? end ?>

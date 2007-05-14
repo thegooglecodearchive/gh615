@@ -1,0 +1,26 @@
+<\?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.0"
+	creator="GH615 Supertool"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns="http://www.topografix.com/GPX/1/0"
+	xsi:schemaLocation="http://www.topografix.com/GPX/1/0 http://www.topografix.com/GPX/1/0/gpx.xsd http://www.topografix.com/GPX/1/0 http://www.topografix.com/GPX/1/0/gpx.xsd http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd http://www.cluetrust.com/XML/GPXDATA/1/0 http://www.cluetrust.com/Schemas/gpxdata10.xsd">
+
+<time>2007-05-08T11:16:45Z</time>
+<bounds minlat="48.049082150" minlon ="8.010199796" maxlat="48.655521980" maxlon="9.061689936" />
+ 
+<trk>
+	<trkseg>
+	<? for trackpoint in trackpoints: ?>
+		<trkpt lat="<?= trackpoint['latitude'] ?>" lon="<?= trackpoint['longitude'] ?>">
+			<ele><?= trackpoint['altitude'] ?></ele>
+			<speed><?= trackpoint['speed'] ?></speed>
+			<time><?= trackpoint['date'] ?></time>
+			<extensions>
+				<gpxdata:hr><?= trackpoint['heartrate'] ?></gpxdata:hr>
+			</extensions>
+		</trkpt>
+	<? end ?>
+	</trkseg>
+</trk>
+
+</gpx>
