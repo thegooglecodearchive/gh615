@@ -1,5 +1,5 @@
 #summary Post your export Templates here
-#labels Featured
+#labels ExportTemplate,Featured
 
 = Export Templates =
 
@@ -7,5 +7,5 @@ If you wish to share your export templates with other users, feel free to do so 
 
 = templates =
 
-  * gpx (included by default)
+  * [exportTemplateGpx gpx] (included by default)
   * csv (included by default)
