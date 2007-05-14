@@ -1,9 +1,22 @@
-import serial, string, datetime, time, sys
+import serial, string, datetime, time, os, sys
 from stpy import Template
 
 commands = {'get_tracklist' : '0x0200017879', 
             'get_waypoints' : '555-1212', 
             'get_track' : '553-1337'}
+
+def getAppPrefix():
+    #Return the location the app is running from
+    isFrozen = False
+    try:
+        isFrozen = sys.frozen
+    except AttributeError:
+        pass
+    if isFrozen:
+        appPrefix = os.path.split(sys.executable)[0]
+    else:
+        appPrefix = os.path.split(os.path.abspath(sys.argv[0]))[0]
+    return appPrefix
 
 def chop(s, chunk):
     return [s[i*chunk:(i+1)*chunk] for i in range((len(s)+chunk-1)/chunk)]
@@ -143,7 +156,8 @@ elif command == "b":
         format = raw_input("Choose output format: [c]=console [gpx]=gpx [csv]=csv ").strip()    
         if format != 'c':
             #read template
-            fileHandle = open(sys.path[0]+'\\exportTemplates\\'+format+'.txt')
+            #fileHandle = open(sys.path[0]+'\\exportTemplates\\'+format+'.txt')
+            fileHandle = open(getAppPrefix()+'\\exportTemplates\\'+format+'.txt')
             templateImport = fileHandle.read()
             fileHandle.close() 
             #parse template
@@ -151,7 +165,8 @@ elif command == "b":
             file = template.render(trackpoints = trackpointsParsed)
             #prompt for filename
             filename = raw_input("Enter a filename: ").strip()
-            filename = sys.path[0]+'\\export\\'+filename+'.'+format
+            #filename = sys.path[0]+'\\export\\'+filename+'.'+format
+            filename = getAppPrefix()+'\\export\\'+filename+'.'+format
             #write to file
             fileHandle = open(filename,'wt')
             fileHandle.write(file)
