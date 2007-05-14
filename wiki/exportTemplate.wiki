@@ -1,0 +1,11 @@
+#summary Post your export Templates here
+#labels ExportTemplate,Featured
+
+= Export Templates =
+
+If you wish to share your export templates with other users, feel free to do so here
+
+= templates =
+
+  * gpx (included by default)
+  * csv (included by default)
