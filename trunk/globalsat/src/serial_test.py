@@ -144,7 +144,8 @@ elif command == "b":
     else:
         print 'Error fetching track'
     
-else:    
+else:
+    '''  
     fileHandle = open('d:/template.gpx.txt')
     templateImport = fileHandle.read()
     fileHandle.close() 
@@ -166,4 +167,5 @@ else:
 
     fileHandle = open('d:/gps.txt','wt')
     fileHandle.write(file)
-    fileHandle.close() 
+    fileHandle.close()
+    '''
