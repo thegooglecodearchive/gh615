@@ -207,11 +207,12 @@ class Serial(SerialBase):
                 rc, buf = win32file.ReadFile(self.hComPort, win32file.AllocateReadBuffer(size), self._overlappedRead)
                 n = win32file.GetOverlappedResult(self.hComPort, self._overlappedRead, 1)
                 read = str(buf[:n])
-                #print 'hans' + read +' / ', '%(#)02X' % {"#": ord(read)}
+                '''
                 if len(read) != 0:
                     read = '%(#)02X' % {"#": ord(read)}
                 else:
                     read = '';
+                '''
         else:
             read = ''
         return read

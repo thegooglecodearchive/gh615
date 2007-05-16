@@ -1,4 +1,4 @@
-latitude, longitude, altitude, speed, date, heartrate
+latitude, longitude, altitude, speed, interval, date, heartrate
 <? for trackpoint in trackpoints: ?>
-<?= trackpoint['latitude'] ?>, <?= trackpoint['longitude'] ?>, <?= trackpoint['altitude'] ?>, <?= trackpoint['speed'] ?>, <?= trackpoint['date'] ?>, <?= trackpoint['heartrate'] ?>
+<?= trackpoint['latitude'] ?>, <?= trackpoint['longitude'] ?>, <?= trackpoint['altitude'] ?>, <?= trackpoint['speed'] ?>, <?= trackpoint['interval'] ?>, <?= trackpoint['date'].strftime("%Y-%m-%dT%H:%M:%SZ") ?>, <?= trackpoint['heartrate'] ?>
 <? end ?>
