@@ -5,8 +5,13 @@ COMMANDS = {
             'getTracklist'                    : '0200017879',
             'getTracks'                       : '0200%(payload)s%(numberOfTracks)s%(trackIds)s%(checksum)s', 
             'requestNextTrackSegment'         : '0200018180', 
-            'requestErrornousTrackSegment'    : '0200018283'
+            'requestErrornousTrackSegment'    : '0200018283',
+            'formatTracks'                    : '0200037900641E',
+            'getWaypoints'                    : '0200017776',
+            'setWaypoints'                    : '02001576%(numberOfWaypoints)s%(trackpoints)s%(checksum)s'
             }
+
+
 
 def getAppPrefix():
     #Return the location the app is running from
@@ -48,6 +53,12 @@ def chr2hex(chr):
     #print 'debug chr2hex ', str(debug)
     return out
 
+def checkersum(hex):
+    checksum = 0
+    for i in range(0,len(hex),2):
+        checksum = checksum^int(hex[i:i+2],16)
+    return dec2hex(checksum)
+    
 def parseTrack(hex):
     #create here
     return track
@@ -112,11 +123,11 @@ def getTracklist():
     time.sleep(1)
     print ser.inWaiting()
     tracklist = chr2hex(ser.readline())
-    time.sleep(1)
+    time.sleep(2)
     ser.close()
     
     #trim header/teil
-    tracklist = tracklist[6:]
+    tracklist = tracklist[6:-2]
     #seperate tracks
     tracks = chop(tracklist,48)
     #if tracks exist    
@@ -138,20 +149,11 @@ def getTracks(trackIds):
         trackIds[i] = '%04X' % int(trackIds[i])
     
     #calculate payload
-    payload = '%04X' % ((len(trackIds)*512)+896)
-    pay1 = hex2dec(payload[0:2])
-    pay2 = hex2dec(payload[2:4])
-    
+    payload = '%04X' % ((len(trackIds)*512)+896)   
     #number of tracks
     numberOfTracks = '%04X' % len(trackIds)
-    num1 = hex2dec(numberOfTracks[0:2])
-    num2 = hex2dec(numberOfTracks[2:4])
-    
-    #calculate checksum
-    xorsum = 0
-    for i in range(0,len(''.join(trackIds)),2):
-        xorsum = int(''.join(trackIds)[i:i+2],16)^xorsum
-    checksum = dec2hex(pay1^pay2^num1^num2^xorsum)
+
+    checksum = checkersum(payload+numberOfTracks+''.join(trackIds))
       
     #connect serial connection
     ser = connectSerial()
@@ -172,8 +174,9 @@ def getTracks(trackIds):
     last = -1
     finished = False;
     while finished == False:
-        print 'waiting in loop', ser.inWaiting()
         data = chr2hex(ser.read(2070))
+        print 'waiting in loop', ser.inWaiting()
+        time.sleep(2)
         #TODO: Kill if data > 2070 
         if data != '8A000000':
             print 'compare', str(last+1)+'/'+str(hex2dec(data[50:54]))
@@ -185,12 +188,13 @@ def getTracks(trackIds):
                     #parse trackinfo
                     track['trackinfo'] = parseTrackInfo(data[6:50])
                 #parse trackpoints
-                track['trackpoints'] = parseTrackpoints(data[58:-2], track['trackinfo']['date'])
+                track['trackpoints'].extend(parseTrackpoints(data[58:-2], track['trackinfo']['date']))
                 #remeber last trackpoint
                 last = hex2dec(data[54:58])
                 #check if last segment of track
-                if len(data) < 4170:
+                if len(data) < 4140:
                     #init new track
+                    print 'initializd new track'
                     tracks.append(track)
                     track = dict([('trackinfo', dict()), ('trackpoints', list())])
                     last = -1
@@ -221,7 +225,7 @@ def exportTracks(tracks, format):
     for track in tracks:
         #parse template
         template = Template(templateImport)
-        file = template.render(trackpoints = track['trackpoints'])
+        file = template.render(trackinfo = track['trackpoints'], trackpoints = track['trackpoints'])
         #prompt for filename
         #filename = raw_input("Enter a filename: ").strip()
         filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
@@ -231,4 +235,71 @@ def exportTracks(tracks, format):
         fileHandle.write(file)
         fileHandle.close()
         print 'Successfully wrote', filename
+        
+def formatTracks():
+    #connect serial connection
+    ser = connectSerial()
+    #write tracklisting command to serial port
+    ser.write(hex2chr(COMMANDS['formatTracks']))
+    #wait for response
+    time.sleep(12)
+    response = chr2hex(ser.read(4070))
+    ser.close()
+    
+    if response == '79000000':
+        return true
+    else:
+        return false
+
+def parseWaypoint(hex):
+    if len(hex) == 36:
+        waypoint = {
+            'latitude' : float(hex2dec(hex[20:28]))/float(1000000),
+            'longitude': float(hex2dec(hex[28:36]))/float(1000000),
+            'altitude' : hex2dec(hex[16:20]),
+            'title'    : chr(hex2dec(hex[0:2]))+chr(hex2dec(hex[2:4]))+chr(hex2dec(hex[4:6]))+chr(hex2dec(hex[6:8]))+chr(hex2dec(hex[8:10]))+chr(hex2dec(hex[10:12])),
+            'type'     : hex2dec(hex[24:26])
+        };
+        return waypoint
+    else:
+        print 'incorrect waypoint length'
+        pass
+
+def getWaypoints():
+    #connect serial connection
+    ser = connectSerial()
+    ser.write(hex2chr(COMMANDS['getWaypoints']))
+    #wait for response
+    time.sleep(2)
+    data = chr2hex(ser.readline())
+    ser.close()
+    
+    waypoints = data[6:-2]
+    waypoints = chop(waypoints,36)
+
+    waypointsParsed = list()
+    for waypoint in waypoints:
+        waypointsParsed.append(parseWaypoint(waypoint));
+    print 'number of waypoints', len(waypointsParsed)
+    return waypointsParsed
+
+def setWaypoints(waypoints):
+    
+    numberOfWaypoints = len(waypoints)
+    payload = 3+(12*waypoints)
+    
+    data = ''
+    for waypoint in waypoints:
+        for attribute in waypoint:
+            for i in range(len(attribute),2):
+                data += attribute[i:i+2] 
+    
+    #connect serial connection
+    ser = connectSerial()
+    #write tracklisting command to serial port
+    ser.write(hex2chr(COMMANDS['setWaypoints']))
+    #wait for response
+    time.sleep(2)
+    data = chr2hex(ser.readline())
+    ser.close()
     
