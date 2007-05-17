@@ -1,5 +1,5 @@
-#summary Post your export Templates here
 #labels ExportTemplate,Featured
+#Summary Post your export Templates here
 
 = Export Templates =
 
@@ -38,5 +38,4 @@ to format the date, see [http://docs.python.org/lib/module-time.html the python 
 
   * [exportTemplateGpx gpx] (included)
   * csv (included)
-
 
