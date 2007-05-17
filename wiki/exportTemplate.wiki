@@ -5,7 +5,38 @@
 
 If you wish to share your export templates with other users, feel free to do so here
 
-= templates =
+== Information available within the templates ==
+===Track===
+For a track, the following information is available:
 
-  * [exportTemplateGpx gpx] (included by default)
-  * csv (included by default)
+  * 'date': the time the track recording started, python datetime object
+  * 'duration': the duration of the track, int, second
+  * 'distance': the distance traveled, int, meter
+  * 'calories': calories burned, int
+  * 'topspeed': the top speed during the track, float, km/h
+  * 'trackpoints': the number of trackpoints the track consists of, int
+
+access to these values: `<?= trackinfo['duration'] ?>`
+
+===Trackpoint===
+For a trackpoint, the following information is available:
+  * 'latitude': the latitude of the trackpoint, float
+  * 'longitude': the longitude of the trackpoint, float
+  * 'altitude': the altitude of the trackpoint, int, meter
+  * 'speed': the speed at the time of the trackpoint, float, km/h
+  * 'heartrate': the heartrate at the time of the trackpoint, int, bpm
+  * 'interval': the time from the previous treackpoint, int, milliseonds
+  * 'date': the time of the trackpoint recording, python datetime object
+
+access to these values: `<?= trackpoints[i]['duration'] ?>`
+
+
+
+to format the date, see [http://docs.python.org/lib/module-time.html the python strftime reference page], for example `<?= trackinfo['date'].strftime("%Y-%m-%dT%H:%M:%SZ") ?>` for ISO 8601
+
+= templates available =
+
+  * [exportTemplateGpx gpx] (included)
+  * csv (included)
+
+
