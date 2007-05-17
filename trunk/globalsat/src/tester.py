@@ -30,12 +30,30 @@ elif command == "c":
     exportTracks(tracks,'csv')
     
 elif command == "d":
-    waypoints = getWaypoints()
-    print waypoints
+    waypoints = getWaypoints()    
+    exportWaypoints(waypoints)
     
 elif command == "e":
-    trackId = raw_input("warning, FORMATTING ALL TRACKS").strip()
+    waypoints = importWaypoints()
+    setWaypoints(waypoints)
+    
+elif command == "ff":
+    warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
     formatTracks()
     
 else:
-    print checksum('15760001303033000000000003D902DD39F5007D4B3E')
+    waypoint = {
+        'latitude' : '48052725',
+        'longitude': '8211262',
+        'altitude' : '985',
+        'title'    : '003000',
+        'type'     : '19'
+    };
+    waypoint2 = {
+        'latitude' : '40052725',
+        'longitude': '8011262',
+        'altitude' : '100',
+        'title'    : 'wurst1',
+        'type'     : '12'
+    };
+    setWaypoints([waypoint,waypoint2])

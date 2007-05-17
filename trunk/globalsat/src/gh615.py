@@ -8,10 +8,9 @@ COMMANDS = {
             'requestErrornousTrackSegment'    : '0200018283',
             'formatTracks'                    : '0200037900641E',
             'getWaypoints'                    : '0200017776',
-            'setWaypoints'                    : '02001576%(numberOfWaypoints)s%(trackpoints)s%(checksum)s'
+            'setWaypoints'                    : '0200%(payload)s76%(numberOfWaypoints)s%(waypoints)s%(checksum)s',
+            'unitInformation'                 : '0200018584'
             }
-
-
 
 def getAppPrefix():
     #Return the location the app is running from
@@ -83,8 +82,10 @@ def parseTrackInfo(hex):
 def parseTrackpoint(hex, timeFromStart = False):
     if len(hex) == 30:
         trackpoint = {
-            'latitude':  float(hex2dec(hex[0:8]))/float(1000000),
-            'longitude': float(hex2dec(hex[8:16]))/float(1000000),
+            #'latitude':  float(hex2dec(hex[0:8]))/float(1000000),
+            #'longitude': float(hex2dec(hex[8:16]))/float(1000000),
+            'latitude'  : '%.6f' % (float(hex2dec(hex[0:8]))/1000000.0),
+            'longitude'  : '%.6f' % (float(hex2dec(hex[8:16]))/1000000.0),
             'altitude':  hex2dec(hex[16:20]),
             'speed':     float(hex2dec(hex[20:24]))/float(100),
             'heartrate': hex2dec(hex[24:26]),
@@ -254,8 +255,9 @@ def formatTracks():
 def parseWaypoint(hex):
     if len(hex) == 36:
         waypoint = {
-            'latitude' : float(hex2dec(hex[20:28]))/float(1000000),
-            'longitude': float(hex2dec(hex[28:36]))/float(1000000),
+            #if float()ed numbers have a stange amount of decimals   
+            'latitude' : '%.6f' % (float(hex2dec(hex[20:28]))/1000000.0),
+            'longitude': '%.6f' % (float(hex2dec(hex[28:36]))/1000000.0),
             'altitude' : hex2dec(hex[16:20]),
             'title'    : chr(hex2dec(hex[0:2]))+chr(hex2dec(hex[2:4]))+chr(hex2dec(hex[4:6]))+chr(hex2dec(hex[6:8]))+chr(hex2dec(hex[8:10]))+chr(hex2dec(hex[10:12])),
             'type'     : hex2dec(hex[24:26])
@@ -283,23 +285,58 @@ def getWaypoints():
     print 'number of waypoints', len(waypointsParsed)
     return waypointsParsed
 
+def exportWaypoints(waypoints):
+    #write to file
+    fileHandle = open(getAppPrefix()+'\\waypoints.txt','wt')
+    fileHandle.write(str(waypoints))
+    fileHandle.close()
+    print 'Successfully wrote waypoints'
+
+def importWaypoints(filepath=getAppPrefix()+'\\waypoints.txt'):
+    #read from file
+    fileHandle = open(filepath)
+    waypointsImported = fileHandle.read()
+    fileHandle.close()    
+    waypoints = eval(waypointsImported)
+    print 'Successfully read waypoints', len(waypoints)
+    return waypoints
+
 def setWaypoints(waypoints):
-    
-    numberOfWaypoints = len(waypoints)
-    payload = 3+(12*waypoints)
-    
+    numberOfWaypoints = '%04X' % len(waypoints)
+    payload = 3+(12*len(waypoints))
+        
     data = ''
     for waypoint in waypoints:
-        for attribute in waypoint:
-            for i in range(len(attribute),2):
-                data += attribute[i:i+2] 
+        chr1 = dec2hex(ord(waypoint['title'][0]))
+        chr2 = dec2hex(ord(waypoint['title'][1]))
+        chr3 = dec2hex(ord(waypoint['title'][2]))
+        chr4 = dec2hex(ord(waypoint['title'][3]))
+        chr5 = dec2hex(ord(waypoint['title'][4]))
+        chr6 = dec2hex(ord(waypoint['title'][5]))
+        
+        lat = '%08X' % (float(waypoint['latitude'])*1000000)
+        lng = '%08X' % (float(waypoint['longitude'])*1000000)
+        alt = '%04X' % int(waypoint['altitude'])
+        type = '%02X' % int(waypoint['type'])
+        
+        data += chr1+chr2+chr3+chr4+chr5+chr6+str('00')+type+alt+lat+lng
+    
+    checksum = checkersum(str(payload)+str('76')+str(numberOfWaypoints)+data)
+    #print 'checksum', checksum
+    #print 'data', data
     
     #connect serial connection
     ser = connectSerial()
     #write tracklisting command to serial port
-    ser.write(hex2chr(COMMANDS['setWaypoints']))
+    ser.write(hex2chr(COMMANDS['setWaypoints'] % {'payload':payload, 'numberOfWaypoints':numberOfWaypoints, 'waypoints': data, 'checksum':checksum}))
     #wait for response
     time.sleep(2)
-    data = chr2hex(ser.readline())
+    response = chr2hex(ser.readline())
     ser.close()
     
+    if response[:8] == '76000200':
+        waypointsUpdated = hex2dec(reponse[8:10])
+        print 'waypoints updated', waypointsUpdated
+        return waypointsUpdated
+    else:
+        print 'error uploading waypoints'     
