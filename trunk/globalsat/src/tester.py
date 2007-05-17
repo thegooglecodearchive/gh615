@@ -1,6 +1,8 @@
 from gh615 import *
 
-command = raw_input("What do you want to do? [a]=get list of all tracks [b]=export a single track [c]=export all tracks").strip()
+
+print "What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=import waypoints\n [e]=export waypoints\n [ff]=format tracks"
+command = raw_input("=>").strip()
 
 if command == "a":
     print "Getting tracklist"
@@ -42,18 +44,4 @@ elif command == "ff":
     formatTracks()
     
 else:
-    waypoint = {
-        'latitude' : '48052725',
-        'longitude': '8211262',
-        'altitude' : '985',
-        'title'    : '003000',
-        'type'     : '19'
-    };
-    waypoint2 = {
-        'latitude' : '40052725',
-        'longitude': '8011262',
-        'altitude' : '100',
-        'title'    : 'wurst1',
-        'type'     : '12'
-    };
-    setWaypoints([waypoint,waypoint2])
+    print "whatever"

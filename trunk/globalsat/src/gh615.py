@@ -226,7 +226,7 @@ def exportTracks(tracks, format):
     for track in tracks:
         #parse template
         template = Template(templateImport)
-        file = template.render(trackinfo = track['trackpoints'], trackpoints = track['trackpoints'])
+        file = template.render(trackinfo = track['trackinfo'], trackpoints = track['trackpoints'])
         #prompt for filename
         #filename = raw_input("Enter a filename: ").strip()
         filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
