@@ -1,5 +1,5 @@
+#summary Information about available export Templates, and how to create such
 #labels ExportTemplate,Featured
-#Summary Post your export Templates here
 
 = Export Templates =
 
