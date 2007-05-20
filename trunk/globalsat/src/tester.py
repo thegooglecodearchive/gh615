@@ -1,7 +1,7 @@
 from gh615 import *
 
 
-print "What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=import waypoints\n [e]=export waypoints\n [ff]=format tracks"
+print "What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=download waypoints\n [e]=upload waypoints\n [ff]=format tracks"
 command = raw_input("=>").strip()
 
 if command == "a":
@@ -25,7 +25,6 @@ elif command == "c":
     for track in allTracks:
         ids.append(track['id'])
     print ids
-    
     time.sleep(2)
     tracks = getTracks(ids)
     

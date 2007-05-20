@@ -12,6 +12,11 @@ COMMANDS = {
             'unitInformation'                 : '0200018584'
             }
 
+def connectSerial():
+    ser = serial.Serial(port='COM1',baudrate=56000,timeout=2)
+    print ser.portstr
+    return ser
+
 def getAppPrefix():
     #Return the location the app is running from
     isFrozen = False
@@ -110,10 +115,7 @@ def parseTrackpoints(hex, timeFromStart = False):
             timeFromStart = parsedTrackpoint['date']
         return ParsedTrackpoints
 
-def connectSerial():
-    ser = serial.Serial(port='COM1',baudrate=56000,timeout=2)
-    print ser.portstr
-    return ser
+
 
 def getTracklist():
     #connect serial connection
@@ -208,8 +210,9 @@ def getTracks(trackIds):
                 #re-request last segment again
                 print 're-requesting last segment'
                 ser.write(hex2chr(COMMANDS['requestErrornousTrackSegment']))
+                ser.flushInput()
                 #take a rest
-                time.sleep(1)
+                time.sleep(2)
         else:
             #received finished sign
             finished = True
@@ -332,6 +335,7 @@ def setWaypoints(waypoints):
     #wait for response
     time.sleep(2)
     response = chr2hex(ser.readline())
+    time.sleep(2)
     ser.close()
     
     if response[:8] == '76000200':

@@ -14,9 +14,6 @@
 			<ele><?= trackpoint['altitude'] ?></ele>
 			<speed><?= trackpoint['speed'] ?></speed>
 			<time><?= trackpoint['date'].strftime("%Y-%m-%dT%H:%M:%SZ") ?></time>
-			<extensions>
-				<gpxdata:hr><?= trackpoint['heartrate'] ?></gpxdata:hr>
-			</extensions>
 		</trkpt>
 	<? end ?>
 	</trkseg>
