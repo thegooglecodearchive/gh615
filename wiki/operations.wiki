@@ -1,23 +1,25 @@
 #summary supported operations
 #labels Phase-Implementation
 
-= Implemented =
+=Implemented=
   * download a list of all tracks
   * download tracks
   * delete all tracks
   * download waypoints
   * upload waypoints
   
-= will implemented in the future = 
+=might implemented in the future=
   * get information about gh165 unit (username, etc)
 
-= unknown if possible =
- * delete indiviual track using software
- * delete individual/all waypoints using software
- * update waypoint information
- * get memory capacity
- * upload routes
- * upload tracks
+=unknown if possible=
+  * delete indiviual track using software
+  * delete individual/all waypoints using software
+  * update waypoint information
+  * get memory capacity
+  * upload routes
+  * upload tracks
 
-= will never be implemented =
+=will never be implemented=
   * firmware update
+
+
