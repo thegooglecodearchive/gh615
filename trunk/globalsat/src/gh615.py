@@ -82,6 +82,7 @@ def parseTrackInfo(hex):
         return trackinfo
     else:
         print 'incorrect track length', len(hex)
+        print hex
         pass
 
 def parseTrackpoint(hex, timeFromStart = False):
@@ -102,8 +103,10 @@ def parseTrackpoint(hex, timeFromStart = False):
     else:
         print 'incorrect trackpoint length'
         pass
-        
-def parseTrackpoints(hex, timeFromStart = False):
+    
+def parseTrackpoints(hex):
+    global timeFromStart
+    
     trackpoints = chop(hex,30)
     if (len(trackpoints) > 0):
         #init trackpoints list
@@ -115,8 +118,6 @@ def parseTrackpoints(hex, timeFromStart = False):
             timeFromStart = parsedTrackpoint['date']
         return ParsedTrackpoints
 
-
-
 def getTracklist():
     #connect serial connection
     ser = connectSerial()
@@ -125,7 +126,7 @@ def getTracklist():
     #wait for response
     time.sleep(1)
     print ser.inWaiting()
-    tracklist = chr2hex(ser.readline())
+    tracklist = chr2hex(ser.read(2070))
     time.sleep(2)
     ser.close()
     
@@ -134,7 +135,7 @@ def getTracklist():
     #seperate tracks
     tracks = chop(tracklist,48)
     #if tracks exist    
-    if tracks > 1:    
+    if len(tracks) > 0:    
         tracksParsed = list()
         for track in tracks:
             tracksParsed.append(parseTrackInfo(track));
@@ -146,8 +147,7 @@ def getTracklist():
         pass
     
 def getTracks(trackIds):
-    #trackIds = trackId.split(' ');
-    #convert inputted track ids to hex-4-digit format
+    global timeFromStart
     for i in range(len(trackIds)):
         trackIds[i] = '%04X' % int(trackIds[i])
     
@@ -166,23 +166,22 @@ def getTracks(trackIds):
     time.sleep(1)
 
     print 'waiting at start', ser.inWaiting()
-    '''
-    if len(data) > 4170:
-        print 'initial segment to large, quitting'
-        end == True
+    
+    if ser.inWaiting() > 2070:
+        print 'initial segment to large, quitting, please retry'
+        finished == True
         ser.close()
-    '''
+    
     tracks = list()
     track = dict([('trackinfo', dict()), ('trackpoints', list())])
     last = -1
     finished = False;
     while finished == False:
         data = chr2hex(ser.read(2070))
-        print 'waiting in loop', ser.inWaiting()
         time.sleep(2)
         #TODO: Kill if data > 2070 
         if data != '8A000000':
-            print 'compare', str(last+1)+'/'+str(hex2dec(data[50:54]))
+            #print 'compare', str(last+1)+'/'+str(hex2dec(data[50:54]))
             if (hex2dec(data[50:54]) == last+1):
                 #debug
                 print 'getting trackpoints', str(hex2dec(data[50:54]))+'-'+str(hex2dec(data[54:58]))
@@ -190,8 +189,9 @@ def getTracks(trackIds):
                 if last == -1:
                     #parse trackinfo
                     track['trackinfo'] = parseTrackInfo(data[6:50])
+                    timeFromStart = track['trackinfo']['date']
                 #parse trackpoints
-                track['trackpoints'].extend(parseTrackpoints(data[58:-2], track['trackinfo']['date']))
+                track['trackpoints'].extend(parseTrackpoints(data[58:-2]))
                 #remeber last trackpoint
                 last = hex2dec(data[54:58])
                 #check if last segment of track
@@ -201,6 +201,7 @@ def getTracks(trackIds):
                     tracks.append(track)
                     track = dict([('trackinfo', dict()), ('trackpoints', list())])
                     last = -1
+                    timeFromStart = False
                 
                 #request next segment
                 ser.write(hex2chr(COMMANDS['requestNextTrackSegment']))

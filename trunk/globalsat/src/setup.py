@@ -10,7 +10,7 @@ for template in filter(f, os.listdir("..\\src\\exportTemplates\\")):
     files.append(dir+template) 
 
 setup(
-      console = ['..\\src\\tester.py'],
+      console = ['..\\src\\gh615_console.py'],
       data_files = [("exportTemplates",files),("export",[])]
       )
 
