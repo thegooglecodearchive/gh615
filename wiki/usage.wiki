@@ -1,0 +1,12 @@
+#summary Insightful usage information
+#labels Phase-Deploy,Phase-Support,Featured
+
+= command line only =
+
+At the current time, this utility is command line only, meaning there is no Graphical User Interface. That should not keep you from trying it out, as the command line is very intuitive for the basic operations supported.
+
+A GUI might or might not happen in the future.
+
+= Usage =
+
+Double click `gh615_console.exe` and follow the instructions
