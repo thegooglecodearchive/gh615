@@ -1,0 +1,9 @@
+#summary Other Globalsat Compatibility Information
+#labels Phase-QA
+
+This Software might very well be usable with other Globalsat Devices, such as the GH-601 or the DG-100. However this is pure speculation. If you have tested this software with any unit other than the GH-615, please add it to this list. Thanks.
+
+= Known working units =
+  * Globalsat GH615
+
+= Known not working units =
