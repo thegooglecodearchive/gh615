@@ -19,7 +19,7 @@ class gh615(object):
 
     def __init__(self):
         """constructor"""
-        print 'Created a class instance'
+        #print 'Created a class instance'
         self.config = self.readConfig()
                
     def xmlGetText(self,nodelist):
@@ -37,7 +37,7 @@ class gh615(object):
         config['serial']['comport']  = str(self.xmlGetText(configXml.getElementsByTagName("comport")[0].childNodes))
         config['serial']['baudrate'] = int(self.xmlGetText(configXml.getElementsByTagName("baudrate")[0].childNodes))
         config['serial']['timeout']  = int(self.xmlGetText(configXml.getElementsByTagName("timeout")[0].childNodes))
-        print 'read configuration successfully', config
+        #print 'read configuration successfully', config
         return config
     
     def connectSerial(self):

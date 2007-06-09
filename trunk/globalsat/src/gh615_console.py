@@ -1,4 +1,4 @@
-from gh615_oo import *
+from gh615 import *
 
 gh615 = gh615()
 
