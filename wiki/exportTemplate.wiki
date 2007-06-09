@@ -28,7 +28,7 @@ For a trackpoint, the following information is available:
   * 'interval': the time from the previous treackpoint, int, milliseonds
   * 'date': the time of the trackpoint recording, python datetime object
 
-access to these values: `<?= trackpoints[i]['duration'] ?>`
+access to these values: `<?= trackpoints[i]['latitude'] ?>`
 
 
 
@@ -38,4 +38,3 @@ to format the date, see [http://docs.python.org/lib/module-time.html the python 
 
   * [exportTemplateGpx gpx] (included)
   * csv (included)
-
