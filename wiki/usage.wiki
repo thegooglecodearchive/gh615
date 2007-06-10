@@ -10,3 +10,25 @@ A GUI might or might not happen in the future.
 = Usage =
 
 Double click `gh615_console.exe` and follow the instructions
+
+== Working with Waypoints ==
+The waypoint implementation is still kind of sketchy at the moment.
+
+Currently this is the way to do it:
+
+  # Download trackpoints (option `d`); waypoints.txt will be created in the root.
+  # Edit waypoints.txt; do not change the title, if you do a new will be created instead of updating the exisiting.
+  # Upload trackpoints (option `e`)
+
+=== structure of waypoints.txt ===
+waypoints.txt is a simple dump of a python 'list'-data structure, which looks like this:
+
+{{{
+[
+{'latitude': '48.052148', 'longitude': '8.210360', 'altitude': 583, 'type': 55, 'title': 'waypo1'},
+{'latitude': '50.052148', 'longitude': '5.210360', 'altitude': 883, 'type': 54, 'title': 'waypo2'}
+]
+}}}
+
+==== fields ====
+most fields are self explanatory, just note that the `title` does not exceed 6 characters. `type` assigns the icon that is display on the map of the gh615.
