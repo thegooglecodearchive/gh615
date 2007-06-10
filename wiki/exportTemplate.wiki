@@ -38,3 +38,5 @@ to format the date, see [http://docs.python.org/lib/module-time.html the python 
 
   * [exportTemplateGpx gpx] (included)
   * csv (included)
+
+please check the [http://gh615.googlecode.com/svn/trunk/globalsat/src/exportTemplates/ svn repository] for the latest version of the exportTemplates
