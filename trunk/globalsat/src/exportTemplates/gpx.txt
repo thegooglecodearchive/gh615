@@ -1,4 +1,4 @@
-<\?xml version="1.0" encoding="UTF-8"?>
+<<?= str('?') ?>xml version="1.0" encoding="UTF-8"?>
 <gpx version="1.0"
 	creator="GH615 Supertool"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
