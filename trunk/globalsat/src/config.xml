@@ -1,7 +1,0 @@
-<config>
-	<serial>
-		<comport>com1</comport>
-		<baudrate>56000</baudrate>
-		<timeout>2</timeout>
-	</serial>
-</config>

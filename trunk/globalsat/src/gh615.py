@@ -1,6 +1,5 @@
-import serial, string, datetime, time, os, sys
+import serial, string, datetime, time, os, sys, ConfigParser
 from stpy import Template
-import xml.dom.minidom
 
 class gh615(object):
     """api for Globalsat GH615"""
@@ -20,30 +19,14 @@ class gh615(object):
     def __init__(self):
         """constructor"""
         #print 'Created a class instance'
-        self.config = self.readConfig()
-               
-    def xmlGetText(self,nodelist):
-        rc = ""
-        for node in nodelist:
-            if node.nodeType == node.TEXT_NODE:
-                rc = rc + node.data
-        return rc
-    
-    def readConfig(self):
-        #Read configuration data from config.xml
-        configXml = xml.dom.minidom.parse(self.getAppPrefix()+'\\config.xml')
-        #TODO: assign automatically
-        config = dict([('serial', dict())])
-        config['serial']['comport']  = str(self.xmlGetText(configXml.getElementsByTagName("comport")[0].childNodes))
-        config['serial']['baudrate'] = int(self.xmlGetText(configXml.getElementsByTagName("baudrate")[0].childNodes))
-        config['serial']['timeout']  = int(self.xmlGetText(configXml.getElementsByTagName("timeout")[0].childNodes))
-        #print 'read configuration successfully', config
-        return config
+        self.config = ConfigParser.ConfigParser()
+        self.config.read(self.getAppPrefix()+'\\config.ini')
     
     def connectSerial(self):
         """connect via serial interface"""
         try:
-            self.serial = serial.Serial(port=self.config['serial']['comport'],baudrate=self.config['serial']['baudrate'],timeout=self.config['serial']['timeout'])
+            print 'wurst', self.config.get("serial", "timeout")  
+            self.serial = serial.Serial(port=self.config.get("serial", "comport"),baudrate=self.config.get("serial", "baudrate"),timeout=int(self.config.get("serial", "timeout")))
             print self.serial.portstr
         except:
             print "error establishing serial port connection, check settings"
@@ -170,7 +153,7 @@ class gh615(object):
             #seperate tracks
             tracks = self.chop(tracklist,48)
             #if tracks exist    
-            if len(tracks) > 0:    
+            if len(tracks) > 4:    
                 tracksParsed = list()
                 for track in tracks:
                     tracksParsed.append(self.parseTrackInfo(track));
