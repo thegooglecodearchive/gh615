@@ -25,7 +25,6 @@ class gh615(object):
     def connectSerial(self):
         """connect via serial interface"""
         try:
-            print 'wurst', self.config.get("serial", "timeout")  
             self.serial = serial.Serial(port=self.config.get("serial", "comport"),baudrate=self.config.get("serial", "baudrate"),timeout=int(self.config.get("serial", "timeout")))
             print self.serial.portstr
         except:
@@ -340,36 +339,35 @@ class gh615(object):
         try:
             numberOfWaypoints = '%04X' % len(waypoints)
             payload = 3+(12*len(waypoints))
-                
+                        
             data = ''
             for waypoint in waypoints:
-                chr1 = dec2hex(ord(waypoint['title'][0]))
-                chr2 = dec2hex(ord(waypoint['title'][1]))
-                chr3 = dec2hex(ord(waypoint['title'][2]))
-                chr4 = dec2hex(ord(waypoint['title'][3]))
-                chr5 = dec2hex(ord(waypoint['title'][4]))
-                chr6 = dec2hex(ord(waypoint['title'][5]))
-                
+                chr1 = self.dec2hex(ord(waypoint['title'][0]))
+                chr2 = self.dec2hex(ord(waypoint['title'][1]))
+                chr3 = self.dec2hex(ord(waypoint['title'][2]))
+                chr4 = self.dec2hex(ord(waypoint['title'][3]))
+                chr5 = self.dec2hex(ord(waypoint['title'][4]))
+                chr6 = self.dec2hex(ord(waypoint['title'][5]))
+
                 lat = '%08X' % (float(waypoint['latitude'])*1000000)
                 lng = '%08X' % (float(waypoint['longitude'])*1000000)
                 alt = '%04X' % int(waypoint['altitude'])
                 type = '%02X' % int(waypoint['type'])
-                
+        
                 data += chr1+chr2+chr3+chr4+chr5+chr6+str('00')+type+alt+lat+lng
-            
+                
             checksum = self.checkersum(str(payload)+str('76')+str(numberOfWaypoints)+data)
             #print 'checksum', checksum
             #print 'data', data
             
             #connect serial connection
             self.connectSerial()
-            #write tracklisting command to serial port
             self.writeSerial(self.COMMANDS['setWaypoints'] % {'payload':payload, 'numberOfWaypoints':numberOfWaypoints, 'waypoints': data, 'checksum':checksum})
             response = self.chr2hex(self.serial.readline())
             time.sleep(2)
             
             if response[:8] == '76000200':
-                waypointsUpdated = self.hex2dec(reponse[8:10])
+                waypointsUpdated = self.hex2dec(response[8:10])
                 print 'waypoints updated', waypointsUpdated
                 return waypointsUpdated
             else:
@@ -378,4 +376,4 @@ class gh615(object):
             print "exception in setWaypoints"
             raise
         finally:
-            self.serial.close()  
+            self.serial.close()
