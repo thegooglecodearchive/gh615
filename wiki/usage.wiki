@@ -17,7 +17,7 @@ The waypoint implementation is still kind of sketchy at the moment.
 Currently this is the way to do it:
 
   # Download trackpoints (option `d`); waypoints.txt will be created in the root.
-  # Edit waypoints.txt; do not change the title, if you do a new will be created instead of updating the exisiting.
+  # Edit waypoints.txt; if you change the title a new waypoint will be created instead of updating the exisiting
   # Upload trackpoints (option `e`)
 
 === structure of waypoints.txt ===
