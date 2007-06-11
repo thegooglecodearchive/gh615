@@ -30,7 +30,7 @@ class gh615(object):
         self.logger.addHandler(handler)
         self.logger.setLevel(logging.DEBUG)
 
-        if self.config.get("debug", "output"):
+        if bool(int(self.config.get("debug", "output"))):
             outputHandler = logging.StreamHandler()
             outputHandler.setFormatter(logging.Formatter('%(levelname)s %(funcName)s(%(lineno)d): %(message)s'))
             self.logger.addHandler(outputHandler)
@@ -388,9 +388,9 @@ class gh615(object):
             #connect serial connection
             self.connectSerial()
             self.writeSerial(self.COMMANDS['setWaypoints'] % {'payload':payload, 'numberOfWaypoints':numberOfWaypoints, 'waypoints': data, 'checksum':checksum})
-            time.sleep(2)
+            time.sleep(3)
             response = self.chr2hex(self.serial.readline())
-            time.sleep(2)
+            time.sleep(3)
             
             if response[:8] == '76000200':
                 waypointsUpdated = self.hex2dec(response[8:10])
