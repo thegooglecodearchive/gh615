@@ -1,4 +1,4 @@
-import serial, string, datetime, time, os, sys, ConfigParser
+import serial, string, datetime, time, os, sys, ConfigParser, logging
 from stpy import Template
 
 class gh615(object):
@@ -18,24 +18,40 @@ class gh615(object):
 
     def __init__(self):
         """constructor"""
-        #print 'Created a class instance'
         self.config = ConfigParser.ConfigParser()
         self.config.read(self.getAppPrefix()+'\\config.ini')
-    
+                
+        #setup the logging module http://www.tiawichiresearch.com/?p=31 / http://www.red-dove.com/python_logging.html
+        handler = logging.FileHandler(self.getAppPrefix()+'\\gh615.log')
+        #TODO: current function in logger
+        formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(lineno)d %(funcName)s %(message)s')
+        handler.setFormatter(formatter)
+        self.logger = logging.getLogger('gh615')
+        self.logger.addHandler(handler)
+        self.logger.setLevel(logging.DEBUG)
+
+        if self.config.get("debug", "output"):
+            outputHandler = logging.StreamHandler()
+            outputHandler.setFormatter(logging.Formatter('%(levelname)s %(funcName)s(%(lineno)d): %(message)s'))
+            self.logger.addHandler(outputHandler)
+        self.logger.debug("created a class instance")
+        #print self.getCurrentFunction()
+            
     def connectSerial(self):
         """connect via serial interface"""
         try:
             self.serial = serial.Serial(port=self.config.get("serial", "comport"),baudrate=self.config.get("serial", "baudrate"),timeout=int(self.config.get("serial", "timeout")))
-            print self.serial.portstr
+            self.logger.debug("serial port connection on " + self.serial.portstr)
         except:
-            print "error establishing serial port connection, check settings"
+            self.logger.critical("error establishing serial port connection")
             raise
     
     def writeSerial(self, arg):
         """utility function utilizing the serial object"""
+        self.logger.debug("writing to serialport: " + arg)
         self.serial.write(self.hex2chr(arg))
         time.sleep(2)
-        print 'waiting:', self.serial.inWaiting()
+        self.logger.debug("waiting at serialport: " + str(self.serial.inWaiting()))
     
     def getAppPrefix(self):
         #Return the location the app is running from
@@ -49,6 +65,9 @@ class gh615(object):
         else:
             appPrefix = os.path.split(os.path.abspath(sys.argv[0]))[0]
         return appPrefix
+    
+    def getCurrentFunction(self):
+        return sys._getframe(1).f_code.co_name
     
     def chop(self, s, chunk):
         return [s[i*chunk:(i+1)*chunk] for i in range((len(s)+chunk-1)/chunk)]
@@ -74,7 +93,6 @@ class gh615(object):
         for i in range(0,len(chr)):
             out += '%(#)02X' % {"#": ord(chr[i])}
             debug += '%(#)02X' % {"#": ord(chr[i])}
-        #print 'debug chr2hex ', str(debug)
         return out
     
     def checkersum(self, hex):
@@ -82,11 +100,7 @@ class gh615(object):
         for i in range(0,len(hex),2):
             checksum = checksum^int(hex[i:i+2],16)
         return self.dec2hex(checksum)
-        
-    def parseTrack(self, hex):
-        #create here
-        return track
-    
+            
     def parseTrackInfo(self, hex):
         if len(hex) == 44 or len(hex) == 48:
             trackinfo = {
@@ -101,8 +115,7 @@ class gh615(object):
                 trackinfo['id'] = self.hex2dec(hex[44:48])
             return trackinfo
         else:
-            print 'incorrect track length', len(hex)
-            print hex
+            self.logger.error('incorrect track length')
             pass
     
     def parseTrackpoint(self, hex, timeFromStart = False):
@@ -121,7 +134,7 @@ class gh615(object):
                 trackpoint['date'] = timeFromStart + datetime.timedelta(milliseconds=(self.hex2dec(hex[26:30])*100)) 
             return trackpoint
         else:
-            print 'incorrect trackpoint length'
+            self.logger.error('incorrect track length')
             pass
         
     def parseTrackpoints(self, hex):
@@ -139,6 +152,7 @@ class gh615(object):
             return ParsedTrackpoints
     
     def getTracklist(self):
+        self.logger.debug('entered')
         try:
             #connect serial connection
             self.connectSerial()
@@ -146,29 +160,28 @@ class gh615(object):
             self.writeSerial(self.COMMANDS['getTracklist'])
             tracklist = self.chr2hex(self.serial.read(2070))
             time.sleep(2)
-            
-            #trim header/teil
-            tracklist = tracklist[6:-2]
-            #seperate tracks
-            tracks = self.chop(tracklist,48)
-            #if tracks exist    
-            if len(tracks) > 4:    
+
+            if len(tracklist) > 8:
+                #trim header/teil
+                tracklist = tracklist[6:-2]
+                #seperate tracks
+                tracks = self.chop(tracklist,48)
+                self.logger.info(str(len(tracks))+' tracks found') 
                 tracksParsed = list()
                 for track in tracks:
                     tracksParsed.append(self.parseTrackInfo(track));
-                print 'number of tracks', len(tracksParsed)
                 return tracksParsed 
-            #if no tracks exist
             else:
-                print "no tracks available"
+                self.logger.info('no tracks found') 
                 pass
         except:
-            print "tracklist exception occured"
+            self.logger.exception('exception in getTracklist')
             raise
         finally:
             self.serial.close()
         
     def getTracks(self, trackIds):
+        self.logger.debug('entered')
         try:
             global timeFromStart
             for i in range(len(trackIds)):
@@ -204,7 +217,8 @@ class gh615(object):
                     #print 'compare', str(last+1)+'/'+str(self.hex2dec(data[50:54]))
                     if (self.hex2dec(data[50:54]) == last+1):
                         #debug
-                        print 'getting trackpoints', str(self.hex2dec(data[50:54]))+'-'+str(self.hex2dec(data[54:58]))
+                        #print 'getting trackpoints', str(self.hex2dec(data[50:54]))+'-'+str(self.hex2dec(data[54:58]))
+                        self.logger.debug('getting trackpoints ' + str(self.hex2dec(data[50:54])) + '-'+str(self.hex2dec(data[54:58])))
                         #check if first segment of track
                         if last == -1:
                             #parse trackinfo
@@ -217,7 +231,7 @@ class gh615(object):
                         #check if last segment of track
                         if len(data) < 4140:
                             #init new track
-                            print 'initializing new track'
+                            self.logger.debug('initalizing new track')
                             tracks.append(track)
                             track = dict([('trackinfo', dict()), ('trackpoints', list())])
                             last = -1
@@ -227,22 +241,23 @@ class gh615(object):
                         self.writeSerial(self.COMMANDS['requestNextTrackSegment'])
                     else:
                         #re-request last segment again
-                        print 're-requesting last segment'
+                        self.logger.debug('last segment Errornou, re-requesting')
                         self.serial.flushInput()
                         self.writeSerial(self.COMMANDS['requestErrornousTrackSegment'])
                 else:
                     #received finished sign
                     finished = True        
             
-            print 'number of tracks', len(tracks)
+            self.logger.info('number of tracks ' + str(len(tracks)))
             return tracks
         except:
-            print "exception in getTracks"
+            self.logger.exception('exception in getTracks')
             raise
         finally:
             self.serial.close()
     
     def exportTracks(self, tracks, format):
+        self.logger.debug('entered')
         #read template
         fileHandle = open(self.getAppPrefix()+'\\exportTemplates\\'+format+'.txt')
         templateImport = fileHandle.read()
@@ -259,9 +274,11 @@ class gh615(object):
             fileHandle = open(filename,'wt')
             fileHandle.write(file)
             fileHandle.close()
-            print 'Successfully wrote', filename
+            self.logger.info('Successfully wrote ' + filename)
+        return len(tracks)
             
     def formatTracks(self):
+        self.logger.debug('entered')
         try:
             #connect serial connection
             ser = self.connectSerial()
@@ -273,11 +290,13 @@ class gh615(object):
             self.serial.close()
             
             if response == '79000000':
-                return true
+                self.logger.info('format tracks successful')
+                return True
             else:
-                return false
+                self.logger.error('format not successful')
+                return False
         except:
-            print "exception in formatTracks"
+            self.logger.exception('exception in formatTracks')
             raise
         finally:
             self.serial.close()
@@ -294,10 +313,11 @@ class gh615(object):
             };
             return waypoint
         else:
-            print 'incorrect waypoint length'
+            self.logger.error('incorrect waypoint length')
             pass
     
     def getWaypoints(self):
+        self.logger.debug('entered')
         try:
             #connect serial connection
             self.connectSerial()
@@ -310,32 +330,37 @@ class gh615(object):
             waypointsParsed = list()
             for waypoint in waypoints:
                 waypointsParsed.append(self.parseWaypoint(waypoint));
-            print 'number of waypoints', len(waypointsParsed)
+            self.logger.info('number of waypoints ' + str(len(waypointsParsed)))             
             return waypointsParsed
         except:
-            print "exception in getWaypoints"
+            self.logger.exception("exception in getWaypoints")
             raise
         finally:
             self.serial.close()
     
     def exportWaypoints(self, waypoints):
+        self.logger.debug('entered')
         #write to file
-        fileHandle = open(self.getAppPrefix()+'\\waypoints.txt','wt')
+        filepath = self.getAppPrefix()+'\\waypoints.txt'
+        fileHandle = open(filepath,'wt')
         fileHandle.write(str(waypoints))
         fileHandle.close()
-        print 'Successfully wrote waypoints to ', self.getAppPrefix()+'\\waypoints.txt'
+        self.logger.info('Successfully wrote waypoints to ' + str(self.getAppPrefix()) + '\\waypoints.txt')
+        return filepath
     
     def importWaypoints(self, filepath=''):
+        self.logger.debug('entered')
         #read from file
         filepath = self.getAppPrefix()+'\\waypoints.txt'
         fileHandle = open(filepath)
         waypointsImported = fileHandle.read()
         fileHandle.close()    
         waypoints = eval(waypointsImported)
-        print 'Successfully read waypoints', len(waypoints)
+        self.logger.info('Successfully read waypoints ' + str(len(waypoints))) 
         return waypoints
     
     def setWaypoints(self, waypoints):
+        self.logger.debug('entered')
         try:
             numberOfWaypoints = '%04X' % len(waypoints)
             payload = 3+(12*len(waypoints))
@@ -363,17 +388,18 @@ class gh615(object):
             #connect serial connection
             self.connectSerial()
             self.writeSerial(self.COMMANDS['setWaypoints'] % {'payload':payload, 'numberOfWaypoints':numberOfWaypoints, 'waypoints': data, 'checksum':checksum})
+            time.sleep(2)
             response = self.chr2hex(self.serial.readline())
             time.sleep(2)
             
             if response[:8] == '76000200':
                 waypointsUpdated = self.hex2dec(response[8:10])
-                print 'waypoints updated', waypointsUpdated
+                self.logger.info('waypoints updated: ' + str(waypointsUpdated))
                 return waypointsUpdated
             else:
-                print 'error uploading waypoints'
+                self.logger.error('error uploading waypoints')
         except:
-            print "exception in setWaypoints"
+            self.logger.exception("exception in setWaypoints")
             raise
         finally:
             self.serial.close()

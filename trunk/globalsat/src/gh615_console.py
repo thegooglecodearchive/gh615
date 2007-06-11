@@ -3,7 +3,7 @@ from gh615 import *
 gh615 = gh615()
 
 def choose():
-    print "What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=download waypoints\n [e]=upload waypoints\n [ff]=format tracks"
+    print "\n What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=download waypoints\n [e]=upload waypoints\n [ff]=format tracks\n [q]=quit"
     command = raw_input("=>").strip()
     
     if command == "a":
@@ -11,10 +11,13 @@ def choose():
         tracks = gh615.getTracklist()
         
         #display
-        row = string.Template('$id | $date | $distance | $calories | $topspeed | $trackpoints')
-        print 'id |         date        | distance | calories | topspeed | trackpoints'
-        for track in tracks:
-            print row.substitute(id='%02d'%track['id'], date=track['date'], distance='%08d'%track['distance'], calories='%08d'%track['calories'], topspeed='%08d'%track['topspeed'], trackpoints='%08d'%track['trackpoints'])
+        if tracks:
+            row = string.Template('$id | $date | $distance | $calories | $topspeed | $trackpoints')
+            print 'id |         date        | distance | calories | topspeed | trackpoints'
+            for track in tracks:
+                print row.substitute(id='%02d'%track['id'], date=track['date'], distance='%08d'%track['distance'], calories='%08d'%track['calories'], topspeed='%08d'%track['topspeed'], trackpoints='%08d'%track['trackpoints'])
+        else:
+            print 'no tracks found'
         choose()
     
     elif command == "b":
@@ -24,7 +27,8 @@ def choose():
         tracks = gh615.getTracks(trackIds)
         
         format = raw_input("Choose output format: [c]=console [gpx]=gpx [csv]=csv ").strip()    
-        gh615.exportTracks(tracks,format)
+        results = gh615.exportTracks(tracks,format)
+        print 'exported tracks', results
         choose()
         
     elif command == "c":
@@ -36,24 +40,33 @@ def choose():
 
         tracks = gh615.getTracks(ids)
 
-        gh615.exportTracks(tracks,'gpx')
+        results = gh615.exportTracks(tracks,'gpx')
+        print 'exported tracks', results
         choose()
         
     elif command == "d":
+        print "Export Waypoints"
         waypoints = gh615.getWaypoints()    
-        gh615.exportWaypoints(waypoints)
+        results = gh615.exportWaypoints(waypoints)
+        print 'exported Waypoints to', results
         choose()
         
     elif command == "e":
+        print "Import Waypoints"
         waypoints = gh615.importWaypoints()
-        gh615.setWaypoints(waypoints)
+        results = gh615.setWaypoints(waypoints)
+        print 'Imported Waypoints', results
         choose()
         
     elif command == "ff":
         warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
-        gh615.formatTracks()
+        results = gh615.formatTracks()
+        print 'Formatted all Tracks:', results
         choose()
-        
+    
+    elif command == "q":
+        sys.exit()
+    
     else:
         print "whatever"
         choose()
