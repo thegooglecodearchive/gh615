@@ -1,0 +1,7 @@
+#summary the changelog
+#labels Featured,Phase-QA
+
+= Build 56 =
+  * waypoint coordinates can now be negativ
+  * added google maps exportTemplate
+  * exportTemplates can be extended using preCalculations
