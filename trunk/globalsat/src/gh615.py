@@ -1,4 +1,4 @@
-import serial, string, datetime, time, os, sys, ConfigParser, logging
+import serial, string, math, datetime, time, os, sys, glob, ConfigParser, logging
 from stpy import Template
 
 class gh615(object):
@@ -241,7 +241,7 @@ class gh615(object):
                         self.writeSerial(self.COMMANDS['requestNextTrackSegment'])
                     else:
                         #re-request last segment again
-                        self.logger.debug('last segment Errornou, re-requesting')
+                        self.logger.debug('last segment Errornous, re-requesting')
                         self.serial.flushInput()
                         self.writeSerial(self.COMMANDS['requestErrornousTrackSegment'])
                 else:
@@ -263,9 +263,15 @@ class gh615(object):
         templateImport = fileHandle.read()
         fileHandle.close() 
         for track in tracks:
+            #execute preCalculations
+            if os.path.exists(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py'):
+                #pre = execfile(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py')
+                exec open(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py').read()
+                pre = pre(track)
+                
             #parse template
             template = Template(templateImport)
-            file = template.render(trackinfo = track['trackinfo'], trackpoints = track['trackpoints'])
+            file = template.render(trackinfo = track['trackinfo'], trackpoints = track['trackpoints'], pre = pre)
             #prompt for filename
             #filename = raw_input("Enter a filename: ").strip()
             filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
@@ -303,10 +309,21 @@ class gh615(object):
     
     def parseWaypoint(self, hex):
         if len(hex) == 36:
+            
+            #latitude: determine if north or south orientation
+            latitude = '%.6f' % (float(self.hex2dec(hex[20:28]))/1000000.0)
+            if hex[20:22] == 'FD':
+                latitude = float(latitude) - 4294.9673
+            
+            #longitude: determine if east or west orientation
+            longitude = '%.6f' % (float(self.hex2dec(hex[28:36]))/1000000.0)
+            if hex[28:30] == 'FF':
+                longitude = float(longitude) - 4294.9673
+            
             waypoint = {
-                #if float()ed numbers have a stange amount of decimals   
-                'latitude' : '%.6f' % (float(self.hex2dec(hex[20:28]))/1000000.0),
-                'longitude': '%.6f' % (float(self.hex2dec(hex[28:36]))/1000000.0),
+                #if float()ed: numbers have a stange amount of decimals   
+                'latitude' : '%.6f' % float(latitude),
+                'longitude': '%.6f' % float(longitude),
                 'altitude' : self.hex2dec(hex[16:20]),
                 'title'    : chr(self.hex2dec(hex[0:2]))+chr(self.hex2dec(hex[2:4]))+chr(self.hex2dec(hex[4:6]))+chr(self.hex2dec(hex[6:8]))+chr(self.hex2dec(hex[8:10]))+chr(self.hex2dec(hex[10:12])),
                 'type'     : self.hex2dec(hex[24:26])
@@ -367,19 +384,25 @@ class gh615(object):
                         
             data = ''
             for waypoint in waypoints:
-                chr1 = self.dec2hex(ord(waypoint['title'][0]))
-                chr2 = self.dec2hex(ord(waypoint['title'][1]))
-                chr3 = self.dec2hex(ord(waypoint['title'][2]))
-                chr4 = self.dec2hex(ord(waypoint['title'][3]))
-                chr5 = self.dec2hex(ord(waypoint['title'][4]))
-                chr6 = self.dec2hex(ord(waypoint['title'][5]))
-
-                lat = '%08X' % (float(waypoint['latitude'])*1000000)
-                lng = '%08X' % (float(waypoint['longitude'])*1000000)
+                if waypoint['latitude'][0] == '-':
+                   latitude = '%08X' % int(4294967295 + (float(waypoint['latitude'])*1000000))
+                else:
+                    latitude = '%08X' % (float(waypoint['latitude'])*1000000)
+                
+                if waypoint['longitude'][0] == '-':
+                   longitude = '%08X' % int(4294967295 + (float(waypoint['longitude'])*1000000))
+                else:
+                    longitude = '%08X' % (float(waypoint['longitude'])*1000000)
+                
                 alt = '%04X' % int(waypoint['altitude'])
                 type = '%02X' % int(waypoint['type'])
-        
-                data += chr1+chr2+chr3+chr4+chr5+chr6+str('00')+type+alt+lat+lng
+                
+                waypoint['title'] = waypoint['title'].ljust(6)
+                titleChr = []
+                for i in range(6):
+                    titleChr.append(self.dec2hex(ord(waypoint['title'][i])))
+            
+                data += titleChr[0]+titleChr[1]+titleChr[2]+titleChr[3]+titleChr[4]+titleChr[5]+str('00')+type+alt+latitude+longitude
                 
             checksum = self.checkersum(str(payload)+str('76')+str(numberOfWaypoints)+data)
             #print 'checksum', checksum

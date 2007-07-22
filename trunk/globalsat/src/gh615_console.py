@@ -2,7 +2,7 @@ from gh615 import *
 
 gh615 = gh615()
 
-def choose():
+def choose():    
     print "\n What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=download waypoints\n [e]=upload waypoints\n [ff]=format tracks\n [q]=quit"
     command = raw_input("=>").strip()
     
@@ -26,8 +26,15 @@ def choose():
         trackIds = trackId.split(' ');
         tracks = gh615.getTracks(trackIds)
         
-        format = raw_input("Choose output format: [c]=console [gpx]=gpx [csv]=csv ").strip()    
+        print 'available exportFormats'
+        for format in glob.glob("exportTemplates\\*.txt"):
+            (filepath, filename) = os.path.split(format)
+            (shortname, extension) = os.path.splitext(filename)
+            print '['+shortname+'] = '+shortname
+        
+        format = raw_input("Choose output format: ").strip()    
         results = gh615.exportTracks(tracks,format)
+
         print 'exported tracks', results
         choose()
         
