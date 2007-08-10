@@ -1,0 +1,48 @@
+<script type="text/javascript">
+<!--
+	window.addEvent('domready', function() {
+		$('extraField').addEvent('click', function(){
+			$('upload').clone().injectAfter('upload');
+		})
+	});
+//-->
+</script>
+
+<ul id="secondLevel">
+	<li><a href="importer">copy track to</a></li>
+    <li><a href="export">copy track from</a></li>
+</ul>
+
+<h1>import tracks</h1>
+
+	<p>
+        Only GPX-tracks are importable.
+        <br />
+        Make sure that the GPX-files contains a exactly <strong>one</strong> <code>&lt;trkseg&gt;</code>-element and <strong>multiple</strong> <code>&lt;trkpt&gt;</code>-elements.
+        <br />
+        Trackpoints _must_ also be timestamped
+    </p>
+
+	<? if files: ?>
+    	<h2>select file</h2>
+        <p>the following files where found, please select one or more to be uploaded</p>
+        
+        <form action="doImport" method="post">
+        <ul>
+        	<? for i, file in enumerate(files): ?>
+        	<li><input name="file" type="checkbox" value="<?= i ?>" /><?= file ?></li>
+            <? end ?>
+        </ul>
+        <input type="submit" />
+        </form>
+    <? end ?>
+    
+    <h2>upload a file</h2>
+    <p>alternatively, you can browse to a file on your computer</p>
+    
+    <form action="doImport" method="post" enctype="multipart/form-data">
+         <input id="upload" name="upload" type="file" />
+         <br />
+         <div id="extraField">let me upload more files</div>
+         <input type="submit" />
+	</form>
