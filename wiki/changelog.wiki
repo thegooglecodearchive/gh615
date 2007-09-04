@@ -1,6 +1,12 @@
 #summary the changelog
 #labels Featured,Phase-QA
 
+= Build 98 =
+  * multiple tracks can now be merged into a single output file
+  * added formats.ini for better configuration of exportFormats
+  * fixed waypoint uploading: more than 3 waypoints can be uploaded
+  * added detection of comport settings
+
 = Build 56 =
   * waypoint coordinates can now be negativ
   * added google maps exportTemplate
