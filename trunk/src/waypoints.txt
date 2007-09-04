@@ -1,1 +1,0 @@
-[{'latitude': '37.505368263398104', 'altitude': '6', 'type': '1', 'longitude': '-121.95785522460938', 'title': 'compto'}]
