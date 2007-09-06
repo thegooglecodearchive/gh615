@@ -62,14 +62,14 @@ class gh615():
     def __init__(self):
         #config
         self.config = ConfigParser.SafeConfigParser()
-        self.config.read(self.getAppPrefix()+'/config.ini')                
+        self.config.read(os.path.join(self.getAppPrefix(),'config.ini'))                
                 
         #logging http://www.tiawichiresearch.com/?p=31 / http://www.red-dove.com/python_logging.html
         logging.STATUS = 15
         logging.addLevelName(logging.STATUS, 'STATUS')
         logging.addLevelName(15, "STATUS")
         
-        handler = logging.FileHandler(self.getAppPrefix()+'/gh615.log')        
+        handler = logging.FileHandler(os.path.join(self.getAppPrefix(),'gh615.log'))        
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(lineno)d %(funcName)s %(message)s')
         handler.setFormatter(formatter)
         handler.setLevel(logging.DEBUG)
@@ -82,7 +82,7 @@ class gh615():
             def filter(self, record):
                 return record.levelno == 15
                 
-        ch = logging.FileHandler(self.getAppPrefix()+'/status.log')  
+        ch = logging.FileHandler(os.path.join(self.getAppPrefix(),'status.log'))  
         ch.setLevel(logging.STATUS)
         ch.addFilter(InfoFilter())
         #ch.setFormatter(formatter)
@@ -230,7 +230,7 @@ class gh615():
     def getExportFormats(self):
         formats = list()
         
-        for format in glob.glob(self.getAppPrefix()+"/exportTemplates/*.txt"):
+        for format in glob.glob(os.path.join(self.getAppPrefix(),"exportTemplates","*.txt")):
             (filepath, filename) = os.path.split(format)
             (shortname, extension) = os.path.splitext(filename)
             formats.append(self.getExportFormat(shortname))
@@ -238,8 +238,8 @@ class gh615():
         return formats
     
     def getExportFormat(self, format):
-            if os.path.exists(self.getAppPrefix()+'/exportTemplates/'+format+'.txt'):
-                fileHandle = open(self.getAppPrefix()+'/exportTemplates/'+format+'.txt')
+            if os.path.exists(os.path.join(self.getAppPrefix(),'exportTemplates',format,'.txt')):
+                fileHandle = open(os.path.join(self.getAppPrefix(),'exportTemplates',format,'.txt'))
                 templateImport = fileHandle.read()
                 fileHandle.close() 
                 
@@ -253,15 +253,15 @@ class gh615():
                 templateConfig.set(format, 'hasMultiple', "false")
                 templateConfig.set(format, 'hasPre', "false")
             
-                templateConfig.read(self.getAppPrefix()+'/exportTemplates/formats.ini')   
+                templateConfig.read(os.path.join(self.getAppPrefix(),'exportTemplates','formats.ini'))   
                                 
                 format = {
-                    'filename': format,
-                    'nicename': templateConfig.get(format, 'nicename'),
-                    'extension': templateConfig.get(format, 'extension'),
-                    'hasMultiple': templateConfig.getboolean(format, 'hasMultiple'), 
-                    'hasPre': os.path.exists(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py'),
-                    'template': templateImport
+                    'filename':     format,
+                    'nicename':     templateConfig.get(format, 'nicename'),
+                    'extension':    templateConfig.get(format, 'extension'),
+                    'hasMultiple':  templateConfig.getboolean(format, 'hasMultiple'), 
+                    'hasPre':       os.path.exists(os.path.join(self.getAppPrefix(),'exportTemplates','pre',format+'.py')),
+                    'template':     templateImport
                 }
                 return format
                 
@@ -433,9 +433,9 @@ class gh615():
         #execute preCalculations
         if exportFormat['hasPre']:
             for track in tracks:
-                if os.path.exists(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py'):
+                if os.path.exists(os.path.join(self.getAppPrefix(),'exportTemplates','pre',format+'.py')):
                     #pre = execfile(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py')
-                    exec open(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py').read()
+                    exec open(os.path.join(self.getAppPrefix(),'exportTemplates','pre',format+'.py')).read()
                     track['pre'] = pre(track)
         
         if merge:
@@ -451,7 +451,7 @@ class gh615():
         file = template.render(tracks = tracks)
         
         filename = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))+"_combo"
-        filename = self.getAppPrefix()+'/export/'+filename+'.'+exportFormat['extension']
+        filename = os.path.join(self.getAppPrefix(),'export',filename+'.'+exportFormat['extension'])
         #write to file
         fileHandle = open(filename,'wt')
         fileHandle.write(file)
@@ -464,7 +464,7 @@ class gh615():
         file = template.render(tracks = [track], track = track)
         
         filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
-        filename = self.getAppPrefix()+'/export/'+filename+'.'+exportFormat['extension']
+        filename = os.path.join(self.getAppPrefix(),'export'+filename+'.'+exportFormat['extension'])
         #write to file
         fileHandle = open(filename,'wt')
         fileHandle.write(file)
@@ -622,7 +622,7 @@ class gh615():
     def exportWaypoints(self, waypoints):
         self.logger.debug('entered')
         #write to file
-        filepath = self.getAppPrefix()+'/waypoints.txt'
+        filepath = os.path.join(self.getAppPrefix(),'waypoints.txt')
         fileHandle = open(filepath,'wt')
         fileHandle.write(str(waypoints))
         fileHandle.close()
@@ -632,7 +632,7 @@ class gh615():
     def importWaypoints(self, filepath=''):
         self.logger.debug('entered')
         #read from file
-        filepath = self.getAppPrefix()+'/waypoints.txt'
+        filepath = os.path.join(self.getAppPrefix(),'waypoints.txt')
         
         if os.path.exists(filepath):
             fileHandle = open(filepath)
