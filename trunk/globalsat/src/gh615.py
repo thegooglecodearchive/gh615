@@ -118,6 +118,12 @@ class gh615():
         except:
             self.logger.debug("trying to close non-existent serial connection")
             pass
+        
+    def writeSerial(self, arg, sleep = 2):
+        self.logger.debug("writing to serialport: " + arg)
+        self.serial.write(self.hex2chr(arg))
+        time.sleep(sleep)
+        self.logger.debug("waiting at serialport: " + str(self.serial.inWaiting()))
                 
     def diagnostic(self):
         """connect via serial interface"""
@@ -128,13 +134,7 @@ class gh615():
         else:
             self.disconnectSerial()
             print "connection established successfully"
-            
-    def writeSerial(self, arg, sleep = 2):
-        self.logger.debug("writing to serialport: " + arg)
-        self.serial.write(self.hex2chr(arg))
-        time.sleep(sleep)
-        self.logger.debug("waiting at serialport: " + str(self.serial.inWaiting()))
-        
+                    
     def getSerialPort(self, availableOnly = True):
         """utility function for finding the most likely serialport the gh615 is connected to"""
         self.logger.debug('entered')
@@ -184,24 +184,19 @@ class gh615():
     
     def hex2chr(self, hex):
         out = ''
-        debug = ''
+
         for i in range(0,len(hex),2):
-            out += chr(int('0x'+hex[i:i+2],16))
-            debug += str(hex[i:i+2])
-        #print 'debug hex2chr ', str(debug)
+            out += chr(self.hex2dec(hex[i:i+2]))
         return out
     
     def chr2hex(self, chr):
         out = ''
-        debug = ''
         for i in range(0,len(chr)):
             out += '%(#)02X' % {"#": ord(chr[i])}
         return out
     
     def __coord2hex(self, coord):
         '''takes care of negative coordinates'''
-        
-        #this is nasty, fix it
         coord = str(coord)
         
         if coord[0] == '-':
@@ -480,72 +475,76 @@ class gh615():
     
     def importTracks(self, trackData, mode = 'file'):
         tracks = list()
-        for track in trackData:
-            tracks.append(self.importTrack(track, mode))
+        
+        if mode == 'file':
+            for track in trackData:
+                fileHandle = open(track)
+                data = fileHandle.read()
+                fileHandle.close()
+                #tracks.append(self.importTrack(data))
+                tracks =  self.importTrack(data)
+        else:
+            for track in trackData:
+                tracks.append(self.importTrack(track))
+        
+        self.logger.info('imported tracks ' + str(len(tracks)))
         return tracks
     
-    def importTrack(self, track, mode = "file"):
-        gpx = GPXParser(track, mode)
-        return gpx.getTrack('gpxtrack')
+    def importTrack(self, track):
+        gpx = GPXParser(track)
+        return gpx.tracks
     
     def setTracks(self, tracks = None):        
-        trackpoints = self.importTrack('C:\\Users\\till\\Desktop\\globalsat\\dummy.gpx')
-        nrOfTrackpoints = len(trackpoints)
-                
-        #date of first waypoint
-        date = datetime.datetime.strptime(trackpoints[0][2],'%Y-%m-%dT%H:%M:%SZ')
-        trackinfo = {
-            'date':        self.dec2hex(int(date.strftime('%y')),2)+self.dec2hex(int(date.strftime('%m')),2)+ self.dec2hex(int(date.strftime('%d')),2)+self.dec2hex(int(date.strftime('%H')),2)+self.dec2hex(int(date.strftime('%M')),2)+self.dec2hex(int(date.strftime('%S')),2),
-            'duration':    '00000000',
-            'distance':    '00000000',
-            'calories':    '0000',
-            'topspeed':    '0000',
-            'trackpoints': self.dec2hex(nrOfTrackpoints,8)
-        }
-        trackinfoConverted = trackinfo['date']+trackinfo['duration']+trackinfo['distance']+trackinfo['calories']+trackinfo['topspeed']+trackinfo['trackpoints']
-        
-        
-        #package segments of 136 trackpoints and send
-        trackpointHex = '%(latitude)s%(longitude)s%(altitude)s%(speed)s%(hr)s%(int)s'
+        tracks = self.importTracks(['C:\\Users\\till\\Desktop\\globalsat\\dummy.xml'], 'file')
         
         self.connectSerial()
-        for frome in xrange(0,nrOfTrackpoints,136):
-            to = (frome+135, nrOfTrackpoints-1)[frome+135 > nrOfTrackpoints]
+        for track in tracks:
+            nrOfTrackpoints = len(track['trackpoints'])
+            print nrOfTrackpoints
+                   
+            date = self.dec2hex(int(track['date'].strftime('%y')),2)+self.dec2hex(int(track['date'].strftime('%m')),2)+ self.dec2hex(int(track['date'].strftime('%d')),2)+self.dec2hex(int(track['date'].strftime('%H')),2)+self.dec2hex(int(track['date'].strftime('%M')),2)+self.dec2hex(int(track['date'].strftime('%S')),2)
+            trackinfoConverted = date+self.dec2hex(track['duration'],8)+self.dec2hex(track['distance'],8)+self.dec2hex(track['calories'],4)+self.dec2hex(track['topspeed'],4)+self.dec2hex(len(track['trackpoints']),8)
             
-            trackpointsConverted = ''
-            for trackpoint in trackpoints[frome:to+1]:
-                trackpointsConverted += trackpointHex % {
-                    #timeDiff = datetime.timedelta(milliseconds=(self.hex2dec(hex[26:30])*100)) 
-                    'latitude':   self.__coord2hex(trackpoint[0]),
-                    'longitude':  self.__coord2hex(trackpoint[1]),
-                    'altitude':   self.dec2hex(0,4), #this is alttiude. not being imported atm
-                    'speed':      self.dec2hex(0,4), #this is speed. not being imported atm
-                    'hr':         self.dec2hex(0,2), #this is hr. not being imported atm
-                    'int':        self.dec2hex(0,4) #this is int. not being imported atm
-                }       
+            trackpointHex = '%(latitude)s%(longitude)s%(altitude)s%(speed)s%(hr)s%(int)s'
             
-            #first segments uses 90, all following 91
-            isFirst = ('91','90')[frome == 0]
-            
-            payload = self.dec2hex(27+(15*((to-frome)+1)),4)                      
-            checksum = self.checkersum((self.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':trackinfoConverted, 'from':self.dec2hex(frome,4), 'to':self.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':'00'})[2:-2])
-            
-            self.writeSerial(self.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':trackinfoConverted, 'from':self.dec2hex(frome,4), 'to':self.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':checksum})
-            response = self.chr2hex(self.serial.readline()) 
-            #self.disconnectSerial()
+            #package segments of 136 trackpoints and send
+            for frome in xrange(0,nrOfTrackpoints,136):
+                to = (frome+135, nrOfTrackpoints-1)[frome+135 > nrOfTrackpoints]
+                
+                trackpointsConverted = ''
+                for trackpoint in track['trackpoints'][frome:to+1]:
+                    trackpointsConverted += trackpointHex % {
+                        #timeDiff = datetime.timedelta(milliseconds=(self.hex2dec(hex[26:30])*100)) 
+                        'latitude':   self.__coord2hex(trackpoint['latitude']),
+                        'longitude':  self.__coord2hex(trackpoint['longitude']),
+                        'altitude':   self.dec2hex(0,4), #this is alttiude. not being imported atm
+                        'speed':      self.dec2hex(0,4), #this is speed. not being imported atm
+                        'hr':         self.dec2hex(0,2), #this is hr. not being imported atm
+                        'int':        self.dec2hex(0,4) #this is int. not being imported atm
+                    }       
+                
+                #first segments uses 90, all following 91
+                isFirst = ('91','90')[frome == 0]
+                
+                payload = self.dec2hex(27+(15*((to-frome)+1)),4)                      
+                checksum = self.checkersum((self.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':trackinfoConverted, 'from':self.dec2hex(frome,4), 'to':self.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':'00'})[2:-2])
+                
+                self.writeSerial(self.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':trackinfoConverted, 'from':self.dec2hex(frome,4), 'to':self.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':checksum})
+                response = self.chr2hex(self.serial.readline()) 
 
-            if response == '9A000000':
-                self.logger.info('successfully uploaded track')
-            elif response == '91000000' or response == '90000000':
-                self.logger.debug('uploaded trackpoints ' + str(frome) + '-' + str(to) + ' of ' + str(nrOfTrackpoints))
-            elif response == '92000000':
-                #this probably means segment was not as expected, should resend previous segment
-                self.logger.debug('wtf')
-                self.disconnectSerial()
-            else:
-                print 'error uploading track'
-                self.disconnectSerial()
-
+                if response == '9A000000':
+                    self.logger.info('successfully uploaded track')
+                elif response == '91000000' or response == '90000000':
+                    self.logger.debug('uploaded trackpoints ' + str(frome) + '-' + str(to) + ' of ' + str(nrOfTrackpoints))
+                elif response == '92000000':
+                    #this probably means segment was not as expected, should resend previous segment
+                    self.logger.debug('wtf')
+                    self.disconnectSerial()
+                else:
+                    print 'error uploading track'
+                    self.disconnectSerial()
+                    sys.exit()
+                    
         self.disconnectSerial()
         return
 
@@ -665,19 +664,15 @@ class gh615():
                 alt = self.dec2hex(int(waypoint['altitude']),4)
                 type = self.dec2hex(int(waypoint['type']),2)
                 
-                waypoint['title'] = waypoint['title'].ljust(6)
-                titleChr = ''
-                for i in range(6):
-                    titleChr += self.dec2hex(ord(waypoint['title'][i]))
+                title = self.chr2hex(waypoint['title'].ljust(6))
             
-                data += titleChr+str('00')+str('01')+alt+latitude+longitude
+                data += title+str('00')+str('01')+alt+latitude+longitude
                 
             checksum = self.checkersum(str(payload)+str('76')+str(numberOfWaypoints)+data)
             
             self.connectSerial()
             self.writeSerial(self.COMMANDS['setWaypoints'] % {'payload':payload, 'numberOfWaypoints':numberOfWaypoints, 'waypoints': data, 'checksum':checksum})
             response = self.chr2hex(self.serial.readline())
-            time.sleep(1)
             
             if response[:8] == '76000200':
                 waypointsUpdated = self.hex2dec(response[8:10])
@@ -697,13 +692,13 @@ class gh615():
             deg = math.floor(degrees/100.0) #decimal degrees
             frac = ((degrees/100.0)-deg)/0.6 #decimal fraction
             ret = deg+frac #positive return value
-            if ((sw=="S") or (sw=="W")):
+            if ((sw == "S") or (sw == "W")):
                 ret=ret*(-1) #flip sign if south or west
             return ret
         
         self.connectSerial()
         line = ""
-        while not(line.startswith("$GPGGA")):
+        while not line.startswith("$GPGGA"):
             line = self.serial.readline()
         self.disconnectSerial()
         
@@ -711,6 +706,42 @@ class gh615():
         tokens = line.split(",")
         lat = dmmm2dec(float(tokens[2]),tokens[3]) #[2] is lat in deg+minutes, [3] is {N|S|W|E}
         lng = dmmm2dec(float(tokens[4]),tokens[5]) #[4] is long in deg+minutes, [5] is {N|S|W|E}
+    
+    def parseUnitInformation(self, hex):
+        if len(hex) == 180:
+            unit = {
+                'device_name'      : self.hex2chr(hex[4:20]),
+                'version'          : self.hex2dec(hex[50:52]),
+                #'dont know'       : self.hex2dec(response[52:56]),
+                'firmware'         : self.hex2chr(hex[56:88]),
+                'name'             : self.hex2chr(hex[90:110]),
+                'sex'              : ('male', 'female')[self.hex2chr(hex[112:114]) == '\x01'],
+                'age'              : self.hex2dec(hex[114:116]),
+                'weight_pounds'    : self.hex2dec(hex[116:120]),
+                'weight_kilos'     : self.hex2dec(hex[120:124]),
+                'height_inches'      : self.hex2dec(hex[124:128]),
+                'height_centimeters' : self.hex2dec(hex[128:132]),
+                'waypoint_count'   : self.hex2dec(hex[132:134]),
+                'trackpoint_count' : self.hex2dec(hex[134:136]),
+                'birth_year'       : self.hex2dec(hex[138:142]),
+                'birth_month'      : self.hex2dec(hex[142:144])+1,
+                'birth_day'        : self.hex2dec(hex[144:146])
+            }
+            return unit
+        else:
+            self.logger.error('incorrect unitInformation length')
+            pass
+    
+    def getUnitInformation(self):
+            self.connectSerial()
+            self.writeSerial(self.COMMANDS['unitInformation'])
+            response = self.chr2hex(self.serial.readline())
+            self.disconnectSerial()
+
+            unit = self.parseUnitInformation(response)
+            print unit
+            
+            return unit
     
     def test(self):
         for i in range(10):

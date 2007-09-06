@@ -98,7 +98,9 @@ def choose():
         choose()
         
     elif command == "test":
+        #gh615.getUnitInformation()
         gh615.setTracks()
+        
         choose()
     
     elif command == "q":
