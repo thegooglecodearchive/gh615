@@ -3,15 +3,17 @@ import py2exe
 import sys, os, glob
 
 setup(
-      console = ['..\\src\\gh615_console.py', '..\\src\\gh615_gui.py'],
+      console = ['..\\src\\gh615_console.py'],
       data_files = [
                     ("", ["..\\src\\config.ini"]),
-                    ("", ["..\\src\\cherrypy.conf"]),
+                    #("", ["..\\src\\cherrypy.conf"]),
                     ("exportTemplates", glob.glob("..\\src\\exportTemplates\\*.txt")),
+                    ("exportTemplates", ['..\\src\\exportTemplates\\formats.ini']),
                     ("exportTemplates\\pre", glob.glob("..\\src\\exportTemplates\\pre\\*.py")),
-                    ("gui", glob.glob("..\\src\\gui\\*.*")),
-                        ("gui\\waypoints", glob.glob("..\\src\\gui\\waypoints\\*.*")),
-                        ("gui\\tracks", glob.glob("..\\src\\gui\\tracks\\*.*")),
+                    
+                    #("gui", glob.glob("..\\src\\gui\\*.*")),
+                    #    ("gui\\waypoints", glob.glob("..\\src\\gui\\waypoints\\*.*")),
+                    #    ("gui\\tracks", glob.glob("..\\src\\gui\\tracks\\*.*")),
                     ("export", [])
       ],
       
