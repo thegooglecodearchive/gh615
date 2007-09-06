@@ -82,7 +82,7 @@ class gh615():
             def filter(self, record):
                 return record.levelno == 15
                 
-        ch = logging.FileHandler(self.getAppPrefix()+'\\status.log')  
+        ch = logging.FileHandler(self.getAppPrefix()+'/status.log')  
         ch.setLevel(logging.STATUS)
         ch.addFilter(InfoFilter())
         #ch.setFormatter(formatter)
@@ -121,7 +121,7 @@ class gh615():
         
     def __writeSerial(self, arg, sleep = 2):
         self.logger.debug("writing to serialport: " + arg)
-        self.serial.write(self.hex2chr(arg))
+        self.serial.write(self.__hex2chr(arg))
         time.sleep(sleep)
         self.logger.debug("waiting at serialport: " + str(self.serial.inWaiting()))
                 
@@ -622,17 +622,17 @@ class gh615():
     def exportWaypoints(self, waypoints):
         self.logger.debug('entered')
         #write to file
-        filepath = self.getAppPrefix()+'\\waypoints.txt'
+        filepath = self.getAppPrefix()+'/waypoints.txt'
         fileHandle = open(filepath,'wt')
         fileHandle.write(str(waypoints))
         fileHandle.close()
-        self.logger.info('Successfully wrote waypoints to ' + str(self.getAppPrefix()) + '\\waypoints.txt')
+        self.logger.info('Successfully wrote waypoints to ' + str(self.getAppPrefix()) + '/waypoints.txt')
         return filepath
     
     def importWaypoints(self, filepath=''):
         self.logger.debug('entered')
         #read from file
-        filepath = self.getAppPrefix()+'\\waypoints.txt'
+        filepath = self.getAppPrefix()+'/waypoints.txt'
         
         if os.path.exists(filepath):
             fileHandle = open(filepath)
