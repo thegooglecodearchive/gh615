@@ -1,6 +1,11 @@
 #summary the changelog
 #labels Featured,Phase-QA
 
+= Build 104 =
+  * made it possible to upload tracks (currently only from gpx-files) just drop files named `*.gpx` with one (or multiple) tracks in the import directory and use option `d` from the main menu
+  * added function to get user and device Information (not very useful yet)
+  * made paths everywhere platform independant (sorry for that)
+
 = Build 98 =
   * multiple tracks can now be merged into a single output file
   * added formats.ini for better configuration of exportFormats
@@ -11,3 +16,6 @@
   * waypoint coordinates can now be negativ
   * added google maps exportTemplate
   * exportTemplates can be extended using preCalculations
+
+
+
