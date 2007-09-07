@@ -3,7 +3,7 @@ from gh615 import *
 gh615 = gh615()
 
 def choose():    
-    print "\n What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=download waypoints\n [e]=upload waypoints\n [ff]=format tracks\n [g]=usb connection test\n [q]=quit"
+    print "\n What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=upload tracks\n [e]=download waypoints\n [f]=upload waypoints\n -------------------\n [gg]=format tracks\n [h]=usb connection test\n [i]=get device information\n -------------------\n [q]=quit"
     command = raw_input("=>").strip()
     
     if command == "a":
@@ -57,26 +57,47 @@ def choose():
         choose()
         
     elif command == "d":
+        print "Upload Tracks"
+        
+        files = glob.glob(os.path.join(gh615.getAppPrefix(),"import","*.gpx"))
+        for i,format in enumerate(files):
+            (filepath, filename) = os.path.split(format)
+            #(shortname, extension) = os.path.splitext(filename)
+            print '['+str(i)+'] = '+ filename
+        
+        fileId = raw_input("enter number(s) [space delimited] ").strip()
+        fileIds = fileId.split(' ');
+        
+        filesToBeImported = []
+        for fileId in fileIds:
+            filesToBeImported.append(files[int(fileId)])
+                
+        tracks = gh615.importTracks(filesToBeImported)
+        results = gh615.setTracks(tracks)
+        print 'successfully uploaded tracks ', str(results)
+        choose()
+        
+    elif command == "e":
         print "Download Waypoints"
         waypoints = gh615.getWaypoints()    
         results = gh615.exportWaypoints(waypoints)
         print 'exported Waypoints to', results
         choose()
         
-    elif command == "e":
+    elif command == "f":
         print "Upload Waypoints"
         waypoints = gh615.importWaypoints()
         results = gh615.setWaypoints(waypoints)
         print 'Imported Waypoints', results
         choose()
         
-    elif command == "ff":
+    elif command == "gg":
         warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
         results = gh615.formatTracks()
         print 'Formatted all Tracks:', results
         choose()
         
-    elif command == "g":
+    elif command == "h":
         print 'Testing serial port connectivity'
         print 'Autodetecting serial port'
         #gh615.diagnostic()
@@ -89,19 +110,19 @@ def choose():
                 
                 prompt = raw_input("do you want to use "+ports[0]+" as your permanent port? [y,n]: ").strip()
                 if prompt == 'y':
-                    f = open('config.ini',"w")
+                    f = open(os.path.join(gh615.getAppPrefix(),'config.ini'),"w")
                     gh615.config.write(f)
                     f.close()
         else:
             print 'no suitable ports found'
-        
         choose()
-        
+    
+    elif command == "i":
+        print gh615.getUnitInformation()
+        choose()
+    
     elif command == "test":
-        #gh615.getUnitInformation()
-        gh615.setTracks()
-        
-        choose()
+        '''test stuff here'''
     
     elif command == "q":
         sys.exit()
