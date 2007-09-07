@@ -4,21 +4,14 @@
 =Implemented=
   * download a list of all tracks
   * download tracks
+  * upload tracks
   * delete all tracks
   * download waypoints
   * upload waypoints
-  
-=might implemented in the future=
-  * get information about gh615 unit (username, etc)
+  * get user Information (including waypoint- and track-count)
+  * get live NMEA data
 
 =unknown if possible=
   * delete indiviual track using software
   * delete individual/all waypoints using software
-  * update waypoint information
-  * get memory capacity
   * upload routes
-  * upload tracks
-
-=will never be implemented=
-  * firmware update
-
