@@ -9,8 +9,8 @@ class gh615():
     STATUS = ''
     COMMANDS = {
         'getTracklist'                    : '0200017879',
-        'getTracks'                       : '0200%(payload)s%(numberOfTracks)s%(trackIds)s%(checksum)s', 
         'setTracks'                       : '02%(payload)s%(isFirst)s%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s', 
+        'getTracks'                       : '0200%(payload)s%(numberOfTracks)s%(trackIds)s%(checksum)s', 
         'requestNextTrackSegment'         : '0200018180', 
         'requestErrornousTrackSegment'    : '0200018283',
         'formatTracks'                    : '0200037900641E',
@@ -465,7 +465,7 @@ class gh615():
         file = template.render(tracks = [track], track = track)
         
         filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(self.getAppPrefix(),'export'+filename+'.'+exportFormat['extension'])
+        filename = os.path.join(self.getAppPrefix(),'export',filename+'.'+exportFormat['extension'])
         #write to file
         fileHandle = open(filename,'wt')
         fileHandle.write(file)
@@ -747,7 +747,7 @@ class gh615():
     
     def unknown(self):
         self.__connectSerial()
-        self.__writeSerial(self.COMMANDS['unknown'])
+        self.__writeSerial(self.COMMANDS['check1'])
         response = self.__chr2hex(self.serial.readline())
         self.__disconnectSerial()
         print response
