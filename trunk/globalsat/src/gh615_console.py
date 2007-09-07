@@ -33,10 +33,10 @@ def choose():
         format = raw_input("Choose output format: ").strip()
         format = gh615.getExportFormat(format)
         
+        merge = False
         if format['hasMultiple']:
             merge = raw_input("Do you want to merge all tracks into a single file? [y/n]: ").strip()
             merge = (False,True)[merge == 'y']
-            print merge
         
         results = gh615.exportTracks(tracks,format['filename'], merge)
 
@@ -123,6 +123,7 @@ def choose():
     
     elif command == "test":
         '''test stuff here'''
+        gh615.unknown()
     
     elif command == "q":
         sys.exit()

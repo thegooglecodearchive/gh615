@@ -14,7 +14,8 @@ setup(
                     #("gui", glob.glob("..\\src\\gui\\*.*")),
                     #    ("gui\\waypoints", glob.glob("..\\src\\gui\\waypoints\\*.*")),
                     #    ("gui\\tracks", glob.glob("..\\src\\gui\\tracks\\*.*")),
-                    ("export", [])
+                    ("export", []),
+                    ("import", [])
       ],
       
       options = { 'py2exe': {
