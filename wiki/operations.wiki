@@ -17,7 +17,7 @@
 
 =functions from GH615_PCAPI.dll=
 
-the original globalsat software utilizes a GH615_PCAPI.dll, which has references to the following commands:
+the original globalsat software utilizes a GH615_PCAPI.dll, which has references to the following commands (thanks RunOway):
 
 ==general functions==
   * OpenPortForGPS(HWND hWnd,TCHAR ComPort?,UINT BaudRate?); 
