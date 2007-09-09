@@ -12,6 +12,39 @@
   * get live NMEA data
 
 =unknown if possible=
-  * delete indiviual track using software
   * delete individual/all waypoints using software
   * upload routes
+
+=functions from GH615_PCAPI.dll=
+
+the original globalsat software utilizes a GH615_PCAPI.dll, which has references to the following commands:
+
+==general functions==
+  * OpenPortForGPS(HWND hWnd,TCHAR ComPort?,UINT BaudRate?); 
+  * OpenPortForGPS_EX(HWND hWnd,TCHAR ComPort?,UINT BaudRate?,UINT Timeout);
+  * ClosePortForGPS();
+  * UpgradeFirmware?(TCHAR filename);
+  * GetSystemConfiguration?(SystemConfiguration? pSystemConfiguration); 
+  * SendNEMACommand(TCHAR szCommand);
+  * OpenTraceLog?(); 
+  * CloseTraceLog?();
+
+==track related==
+  * GetTrackFileCount?(UINT pCountofTrackFile);
+  * GetTrackPointFileList?(TrackPointFileHeader? pTrackFileHeader, UINT pNumofTracks); 
+  * RequsetTrackPointFilesByIndex?(UINT id, UINT NumofFiles?); 
+  * RequsetCurrentTrackPointFile?(); 
+  * RequsetFirstTrackPointFile?(); 
+  * RequsetNextTrackPointFile?(); 
+  * ReSendTrackPointFile?();
+  * SendTrackPointFile?(TrackPointFile? pTrackPointFile, UINT pNumofPoints);
+  * ReceiveTrackPointFile?(TrackPointFile? pTrackPointFile, UINT pNumofPoints); 
+  * DelAllTrackFiles?(); 
+  * DelTrackFiles?(UINT id, UINT NumofFiles?); 
+
+==waypoint related==
+  * GetWayPointFileCount?(UINT pCountofWayPointFile); 
+  * RequsetWayPointFile?(); 
+  * RequestNextWayPointFile?();
+  * SendWayPointFile?(WayPoints? pWayPoints, UINT pNumofWayPoints); 
+  * ReceiveWayPointFile?(WayPoints? pWayPoints, UINT pNumofWayPoints); 
