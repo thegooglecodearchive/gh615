@@ -9,11 +9,12 @@
 						http://www.cluetrust.com/XML/GPXDATA/1/0
 						http://www.cluetrust.com/Schemas/gpxdata10.xsd">
 
-<time><?= trackinfo['date'].strftime("%Y-%m-%dT%H:%M:%SZ") ?></time>
- 
+<time></time>
+
+<? for track in tracks: ?>
 <trk>
 	<trkseg>
-	<? for trackpoint in trackpoints: ?>
+	<? for trackpoint in track['trackpoints']: ?>
 		<trkpt lat="<?= trackpoint['latitude'] ?>" lon="<?= trackpoint['longitude'] ?>">
 			<ele><?= trackpoint['altitude'] ?></ele>
 			<speed><?= trackpoint['speed'] ?></speed>
@@ -25,5 +26,6 @@
 	<? end ?>
 	</trkseg>
 </trk>
+<? end ?>
 
 </gpx>
