@@ -63,14 +63,14 @@ class gh615():
     def __init__(self):
         #config
         self.config = ConfigParser.SafeConfigParser()
-        self.config.read(os.path.join(self.getAppPrefix(),'config.ini'))                
+        self.config.read(self.getAppPrefix('config.ini'))                
                 
         #logging http://www.tiawichiresearch.com/?p=31 / http://www.red-dove.com/python_logging.html
         logging.STATUS = 15
         logging.addLevelName(logging.STATUS, 'STATUS')
         logging.addLevelName(15, "STATUS")
         
-        handler = logging.FileHandler(os.path.join(self.getAppPrefix(),'gh615.log'))        
+        handler = logging.FileHandler(self.getAppPrefix('gh615.log'))        
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(lineno)d %(funcName)s %(message)s')
         handler.setFormatter(formatter)
         handler.setLevel(logging.DEBUG)
@@ -83,7 +83,7 @@ class gh615():
             def filter(self, record):
                 return record.levelno == 15
                 
-        ch = logging.FileHandler(os.path.join(self.getAppPrefix(),'status.log'))  
+        ch = logging.FileHandler(self.getAppPrefix('status.log'))  
         ch.setLevel(logging.STATUS)
         ch.addFilter(InfoFilter())
         #ch.setFormatter(formatter)
@@ -155,7 +155,7 @@ class gh615():
         else:
             return list()
                 
-    def getAppPrefix(self):
+    def getAppPrefix(self, *args):
         #Return the location the app is running from
         isFrozen = False
         try:
@@ -166,6 +166,10 @@ class gh615():
             appPrefix = os.path.split(sys.executable)[0]
         else:
             appPrefix = os.path.split(os.path.abspath(sys.argv[0]))[0]
+        
+        if args:
+            appPrefix = os.path.join(appPrefix,*args)
+            
         return appPrefix
     
     def __chop(self, s, chunk):
@@ -231,7 +235,7 @@ class gh615():
     def getExportFormats(self):
         formats = list()
         
-        for format in glob.glob(os.path.join(self.getAppPrefix(),"exportTemplates","*.txt")):
+        for format in glob.glob(self.getAppPrefix("exportTemplates","*.txt")):
             (filepath, filename) = os.path.split(format)
             (shortname, extension) = os.path.splitext(filename)
             formats.append(self.getExportFormat(shortname))
@@ -239,8 +243,8 @@ class gh615():
         return formats
     
     def getExportFormat(self, format):
-            if os.path.exists(os.path.join(self.getAppPrefix(),'exportTemplates',format+'.txt')):
-                fileHandle = open(os.path.join(self.getAppPrefix(),'exportTemplates',format+'.txt'))
+            if os.path.exists(self.getAppPrefix('exportTemplates',format+'.txt')):
+                fileHandle = open(self.getAppPrefix('exportTemplates',format+'.txt'))
                 templateImport = fileHandle.read()
                 fileHandle.close() 
                 
@@ -254,14 +258,14 @@ class gh615():
                 templateConfig.set(format, 'hasMultiple', "false")
                 templateConfig.set(format, 'hasPre', "false")
             
-                templateConfig.read(os.path.join(self.getAppPrefix(),'exportTemplates','formats.ini'))   
+                templateConfig.read(self.getAppPrefix('exportTemplates','formats.ini'))   
                                 
                 format = {
                     'filename':     format,
                     'nicename':     templateConfig.get(format, 'nicename'),
                     'extension':    templateConfig.get(format, 'extension'),
                     'hasMultiple':  templateConfig.getboolean(format, 'hasMultiple'), 
-                    'hasPre':       os.path.exists(os.path.join(self.getAppPrefix(),'exportTemplates','pre',format+'.py')),
+                    'hasPre':       os.path.exists(self.getAppPrefix('exportTemplates','pre',format+'.py')),
                     'template':     templateImport
                 }
                 return format
@@ -434,9 +438,9 @@ class gh615():
         #execute preCalculations
         if exportFormat['hasPre']:
             for track in tracks:
-                if os.path.exists(os.path.join(self.getAppPrefix(),'exportTemplates','pre',format+'.py')):
+                if os.path.exists(self.getAppPrefix('exportTemplates','pre',format+'.py')):
                     #pre = execfile(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py')
-                    exec open(os.path.join(self.getAppPrefix(),'exportTemplates','pre',format+'.py')).read()
+                    exec open(self.getAppPrefix('exportTemplates','pre',format+'.py')).read()
                     track['pre'] = pre(track)
         
         if merge:
@@ -452,7 +456,7 @@ class gh615():
         file = template.render(tracks = tracks)
         
         filename = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))+"_combo"
-        filename = os.path.join(self.getAppPrefix(),'export',filename+'.'+exportFormat['extension'])
+        filename = self.getAppPrefix('export',filename+'.'+exportFormat['extension'])
         #write to file
         fileHandle = open(filename,'wt')
         fileHandle.write(file)
@@ -465,7 +469,7 @@ class gh615():
         file = template.render(tracks = [track], track = track)
         
         filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
-        filename = os.path.join(self.getAppPrefix(),'export',filename+'.'+exportFormat['extension'])
+        filename = self.getAppPrefix('export',filename+'.'+exportFormat['extension'])
         #write to file
         fileHandle = open(filename,'wt')
         fileHandle.write(file)
@@ -627,7 +631,7 @@ class gh615():
     def exportWaypoints(self, waypoints):
         self.logger.debug('entered')
         #write to file
-        filepath = os.path.join(self.getAppPrefix(),'waypoints.txt')
+        filepath = self.getAppPrefix('waypoints.txt')
         fileHandle = open(filepath,'wt')
         fileHandle.write(str(waypoints))
         fileHandle.close()
@@ -637,7 +641,7 @@ class gh615():
     def importWaypoints(self, filepath=''):
         self.logger.debug('entered')
         #read from file
-        filepath = os.path.join(self.getAppPrefix(),'waypoints.txt')
+        filepath = self.getAppPrefix('waypoints.txt')
         
         if os.path.exists(filepath):
             fileHandle = open(filepath)
@@ -759,3 +763,69 @@ class gh615():
             time.sleep(1)
         self.__setStatus('success')
         return 'success'
+    
+class gh615_unit():
+    '''class containing all gh615 unit inforamation'''
+    
+    device_name = ''
+    version = ''
+    firmware = ''
+    name = ''
+    sex = ''
+    age = ''
+    weight_pounds = ''
+    weight_kilos = ''
+    height_inches = ''
+    height_centimeters = ''
+    waypoint_count = ''
+    trackpoint_count = ''
+    birth_year = ''
+    birth_month = ''
+    birth_day = ''
+    dob = ''
+
+    def __init__(self):
+        '''whutcha ma put here'''
+    
+    def __str__(self):
+        '''put shit here'''
+    
+    def __parseUnitInformation(self, hex):
+        '''private function which parses hexvalues to to the acutal data '''
+        
+        if len(hex) == 180:
+            self.device_name        = self.__hex2chr(hex[4:20]),
+            self.version            = self.__hex2dec(hex[50:52]),
+            #'dont know'            = self.__hex2dec(response[52:56]),
+            self.firmware           = self.__hex2chr(hex[56:88]),
+            self.name               = self.__hex2chr(hex[90:110]),
+            self.sex                = ('male', 'female')[self.__hex2chr(hex[112:114]) == '\x01'],
+            self.age                = self.__hex2dec(hex[114:116]),
+            self.weight_pounds      = self.__hex2dec(hex[116:120]),
+            self.weight_kilos       = self.__hex2dec(hex[120:124]),
+            self.height_inches      = self.__hex2dec(hex[124:128]),
+            self.height_centimeters = self.__hex2dec(hex[128:132]),
+            self.waypoint_count     = self.__hex2dec(hex[132:134]),
+            self.trackpoint_count   = self.__hex2dec(hex[134:136]),
+            self.birth_year         = self.__hex2dec(hex[138:142]),
+            self.birth_month        = self.__hex2dec(hex[142:144])+1,
+            self.birth_day          = self.__hex2dec(hex[144:146])
+            
+            self.dob                = datetime.datetime(self.birth_year, self.birth_month,self.birth_day)
+            
+            pass
+        else:
+            self.logger.error('incorrect unitInformation length, aborting')
+            pass
+    
+    def getUnitInformation(self):
+            '''requesting gh615 unit information'''
+            
+            self.__connectSerial()
+            self.__writeSerial(self.COMMANDS['unitInformation'])
+            response = self.__chr2hex(self.serial.readline())
+            self.__disconnectSerial()
+
+            self.__parseUnitInformation(response)
+            
+            pass

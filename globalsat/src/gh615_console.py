@@ -110,7 +110,7 @@ def choose():
                 
                 prompt = raw_input("do you want to use "+ports[0]+" as your permanent port? [y,n]: ").strip()
                 if prompt == 'y':
-                    f = open(os.path.join(gh615.getAppPrefix(),'config.ini'),"w")
+                    f = open(gh615.getAppPrefix('config.ini'),"w")
                     gh615.config.write(f)
                     f.close()
         else:
