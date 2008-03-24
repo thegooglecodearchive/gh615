@@ -22,7 +22,7 @@ setup(
         "compressed": 1,
         "optimize": 1,
         "bundle_files": 1, #3 = many files, 1 = bundled into exe
-        'packages': ["email"],
+#        'packages': ["email"],
         'excludes': ["image","OpenSSL","Tkconstants","Tkinter","tcl"]
          }
       },

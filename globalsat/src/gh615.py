@@ -95,8 +95,6 @@ class gh615():
             outputHandler.setFormatter(logging.Formatter('%(levelname)s %(funcName)s(%(lineno)d): %(message)s'))
             self.logger.addHandler(outputHandler)
     
-        self.logger.debug("created a class instance")
-    
     def __setStatus(self, msg):
         self.logger.log(15, msg)
         self.STATUS = msg
@@ -141,7 +139,7 @@ class gh615():
         self.logger.debug('entered')
         
         if os.name == 'nt':
-            from serial.serialscan32 import *
+            from serial.serialscan32 import comports
             
             ports = list()
             for port, desc, hwid in comports(availableOnly):
@@ -217,21 +215,7 @@ class gh615():
         for i in range(0,len(hex),2):
             checksum = checksum^int(hex[i:i+2],16)
         return self.__dec2hex(checksum)
-    
-    '''
-    def localizedLength(self, x, printUnit = False):
-        unit = config.get('measurement','unit')
         
-        if unit == 'imperial':
-            out = x*3.2808399
-        else: 
-            out = x
-            
-        if printUnit:
-            out += unit
-        return out
-    '''
-    
     def getExportFormats(self):
         formats = list()
         
@@ -296,8 +280,8 @@ class gh615():
             trackpoint = {
                 #'latitude':  float(self.__hex2dec(hex[0:8]))/float(1000000),
                 #'longitude': float(self.__hex2dec(hex[8:16]))/float(1000000),
-                'latitude':  '%.6f' % (float(self.__hex2dec(hex[0:8]))/1000000.0),
-                'longitude': '%.6f' % (float(self.__hex2dec(hex[8:16]))/1000000.0),
+                'latitude':   self.__hex2coord(hex[0:8]),
+                'longitude':  self.__hex2coord(hex[8:16]),
                 'altitude':   self.__hex2dec(hex[16:20]),
                 'speed':      float(self.__hex2dec(hex[20:24]))/float(100),
                 'heartrate':  self.__hex2dec(hex[24:26]),
@@ -352,7 +336,15 @@ class gh615():
             raise
         finally:
             self.__disconnectSerial()
-        
+    
+    def getAllTracks(self):
+        allTracks = self.getTracklist()
+        ids = list()
+        for track in allTracks:
+            ids.append(track['id'])
+
+        return self.getTracks(ids)
+    
     def getTracks(self, trackIds):
         self.logger.debug('entered')
         try:
@@ -429,12 +421,10 @@ class gh615():
         finally:
             self.__disconnectSerial()
     
-    def exportTracks(self, tracks, format, merge = False):
+    def exportTracks(self, tracks, format, merge = False, **kwargs):
         self.logger.debug('entered')
-        #read template
-        
+        #read template 
         exportFormat = self.getExportFormat(format)
-                
         #execute preCalculations
         if exportFormat['hasPre']:
             for track in tracks:
@@ -442,56 +432,51 @@ class gh615():
                     #pre = execfile(self.getAppPrefix()+'/exportTemplates/pre/'+format+'.py')
                     exec open(self.getAppPrefix('exportTemplates','pre',format+'.py')).read()
                     track['pre'] = pre(track)
-        
+                
+        if kwargs['path']:
+            path = os.path.join(kwargs['path'])
+        else:
+            path = self.getAppPrefix('export')
+                
+        template = Template(exportFormat['template'])
         if merge:
-            self.__exportTracksMerged(tracks, exportFormat)  
+            path = os.path.join(path, tracks[0]['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")+'.'+exportFormat['extension'])
+            file = template.render(tracks = tracks)  
+            self.__exportTrack(file, path)
         else:
             for track in tracks:
-                self.__exportTrack(track, exportFormat)
-
+                #first arg is for compatibility reasons
+                path = os.path.join(path, track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")+'.'+exportFormat['extension'])
+                file = template.render(tracks = [track], track = track)
+                self.__exportTrack(file, path)
         return len(tracks)
-    
-    def __exportTracksMerged(self, tracks, exportFormat):
-        template = Template(exportFormat['template'])
-        file = template.render(tracks = tracks)
-        
-        filename = str(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))+"_combo"
-        filename = self.getAppPrefix('export',filename+'.'+exportFormat['extension'])
-        #write to file
-        fileHandle = open(filename,'wt')
-        fileHandle.write(file)
+ 
+    def __exportTrack(self, content, path):       
+        fileHandle = open(path,'wt')
+        fileHandle.write(content)
         fileHandle.close()
-        self.logger.info('Successfully combine-wrote ' + filename)
+        self.logger.info('Successfully wrote ' + path)    
     
-    def __exportTrack(self, track, exportFormat):
-        template = Template(exportFormat['template'])
-        #first arg is for compatibility reasons
-        file = template.render(tracks = [track], track = track)
-        
-        filename = track['trackinfo']['date'].strftime("%Y-%m-%d_%H-%M-%S")
-        filename = self.getAppPrefix('export',filename+'.'+exportFormat['extension'])
-        #write to file
-        fileHandle = open(filename,'wt')
-        fileHandle.write(file)
-        fileHandle.close()
-        self.logger.info('Successfully wrote ' + filename)    
-    
-    def importTracks(self, trackData, mode = 'file'):
+    def importTracks(self, trackData, **kwargs):
         tracks = list()
         
-        if mode == 'file':
-            tracks = []
-            for track in trackData:
-                fileHandle = open(track)
-                data = fileHandle.read()
-                fileHandle.close()
-                #MERGE AT THIS POINT
-                for s in self.__importTrack(data):
-                    tracks.append(s)                
-                #tracks = self.__importTrack(data)
+        if "path" in kwargs:
+            path = os.path.join(kwargs['path'])
         else:
-            for track in trackData:
-                tracks.append(self.__importTrack(track))
+            path = self.getAppPrefix('import')
+        
+        tracks = []
+        for track in trackData:
+            fileHandle = open(os.path.join(path,track))
+            data = fileHandle.read()
+            fileHandle.close()
+            #MERGE AT THIS POINT
+            for s in self.__importTrack(data):
+                tracks.append(s)                
+        
+        #else:
+        #    for track in trackData:
+        #        tracks.append(self.__importTrack(track))
         
         self.logger.info('imported tracks ' + str(len(tracks)))
         return tracks
@@ -577,16 +562,11 @@ class gh615():
             self.logger.exception('exception in formatTracks')
             raise
         finally:
-            self.serial.dis__connectSerial()
+            self.__disconnectSerial()
     
     def __parseWaypoint(self, hex):
-        if len(hex) == 36:
-            
-            #latitude: determine if north or south orientation
-            latitude = self.__hex2coord(hex[20:28])  
-            longitude = self.__hex2coord(hex[28:36])
-            
-            #if hex eq 00 chr() converts it to \x00 no to space
+        if len(hex) == 36:            
+            #if hex == 00 chr() converts it to \x00, not to space
             def safeConvert(c):
                 if c == '00':
                     return ' '
@@ -595,8 +575,8 @@ class gh615():
             
             waypoint = {
                 #if float()ed: numbers have a stange amount of decimals   
-                'latitude' : '%.6f' % float(latitude),
-                'longitude': '%.6f' % float(longitude),
+                'latitude' : self.__hex2coord(hex[20:28]),
+                'longitude': self.__hex2coord(hex[28:36]),
                 'altitude' : self.__hex2dec(hex[16:20]),
                 'title'    : safeConvert(hex[0:2])+safeConvert(hex[2:4])+safeConvert(hex[4:6])+safeConvert(hex[6:8])+safeConvert(hex[8:10])+safeConvert(hex[10:12]),
                 'type'     : self.__hex2dec(hex[12:16])
@@ -628,21 +608,28 @@ class gh615():
         finally:
             self.__disconnectSerial()
     
-    def exportWaypoints(self, waypoints):
+    def exportWaypoints(self, waypoints, **kwargs):
         self.logger.debug('entered')
         #write to file
-        filepath = self.getAppPrefix('waypoints.txt')
+        if kwargs['path']:
+            filepath = os.path.join(kwargs['path'], 'waypoints.txt')
+        else:    
+            filepath = self.getAppPrefix('waypoints.txt')
+                
         fileHandle = open(filepath,'wt')
         fileHandle.write(str(waypoints))
         fileHandle.close()
-        self.logger.info('Successfully wrote waypoints to ' + str(self.getAppPrefix()) + '/waypoints.txt')
+        self.logger.info('Successfully wrote waypoints to %s' % filepath)
         return filepath
     
-    def importWaypoints(self, filepath=''):
+    def importWaypoints(self, **kwargs):
         self.logger.debug('entered')
         #read from file
-        filepath = self.getAppPrefix('waypoints.txt')
-        
+        if kwargs['path']:
+            filepath = os.path.join(kwargs['path'], 'waypoints.txt')
+        else:    
+            filepath = self.getAppPrefix('waypoints.txt')
+                
         if os.path.exists(filepath):
             fileHandle = open(filepath)
             waypointsImported = fileHandle.read()
@@ -670,7 +657,6 @@ class gh615():
                 
                 alt = self.__dec2hex(int(waypoint['altitude']),4)
                 type = self.__dec2hex(int(waypoint['type']),2)
-                
                 title = self.__chr2hex(waypoint['title'].ljust(6))
             
                 data += title+str('00')+str('01')+alt+latitude+longitude
@@ -763,69 +749,3 @@ class gh615():
             time.sleep(1)
         self.__setStatus('success')
         return 'success'
-    
-class gh615_unit():
-    '''class containing all gh615 unit inforamation'''
-    
-    device_name = ''
-    version = ''
-    firmware = ''
-    name = ''
-    sex = ''
-    age = ''
-    weight_pounds = ''
-    weight_kilos = ''
-    height_inches = ''
-    height_centimeters = ''
-    waypoint_count = ''
-    trackpoint_count = ''
-    birth_year = ''
-    birth_month = ''
-    birth_day = ''
-    dob = ''
-
-    def __init__(self):
-        '''whutcha ma put here'''
-    
-    def __str__(self):
-        '''put shit here'''
-    
-    def __parseUnitInformation(self, hex):
-        '''private function which parses hexvalues to to the acutal data '''
-        
-        if len(hex) == 180:
-            self.device_name        = self.__hex2chr(hex[4:20]),
-            self.version            = self.__hex2dec(hex[50:52]),
-            #'dont know'            = self.__hex2dec(response[52:56]),
-            self.firmware           = self.__hex2chr(hex[56:88]),
-            self.name               = self.__hex2chr(hex[90:110]),
-            self.sex                = ('male', 'female')[self.__hex2chr(hex[112:114]) == '\x01'],
-            self.age                = self.__hex2dec(hex[114:116]),
-            self.weight_pounds      = self.__hex2dec(hex[116:120]),
-            self.weight_kilos       = self.__hex2dec(hex[120:124]),
-            self.height_inches      = self.__hex2dec(hex[124:128]),
-            self.height_centimeters = self.__hex2dec(hex[128:132]),
-            self.waypoint_count     = self.__hex2dec(hex[132:134]),
-            self.trackpoint_count   = self.__hex2dec(hex[134:136]),
-            self.birth_year         = self.__hex2dec(hex[138:142]),
-            self.birth_month        = self.__hex2dec(hex[142:144])+1,
-            self.birth_day          = self.__hex2dec(hex[144:146])
-            
-            self.dob                = datetime.datetime(self.birth_year, self.birth_month,self.birth_day)
-            
-            pass
-        else:
-            self.logger.error('incorrect unitInformation length, aborting')
-            pass
-    
-    def getUnitInformation(self):
-            '''requesting gh615 unit information'''
-            
-            self.__connectSerial()
-            self.__writeSerial(self.COMMANDS['unitInformation'])
-            response = self.__chr2hex(self.serial.readline())
-            self.__disconnectSerial()
-
-            self.__parseUnitInformation(response)
-            
-            pass
