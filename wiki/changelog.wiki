@@ -1,6 +1,11 @@
 #summary the changelog
 #labels Featured,Phase-QA
 
+= Build 118 =
+  * added command line interface, see WikiUsage
+  * More than 14 Waypoints can be uploaded
+  * Corrected Latitude for Trackpoints in the southern hemisphere
+
 = Build 104 =
   * made it possible to upload tracks (currently only from gpx-files) just drop files named `*.gpx` with one (or multiple) tracks in the import directory and use option `d` from the main menu
   * added function to get user and device Information (not very useful yet)
@@ -16,6 +21,4 @@
   * waypoint coordinates can now be negativ
   * added google maps exportTemplate
   * exportTemplates can be extended using preCalculations
-
-
 
