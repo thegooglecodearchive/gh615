@@ -2,7 +2,7 @@
 #labels Featured,Phase-QA
 
 = Build 118 =
-  * added command line interface, see WikiUsage
+  * added command line interface, see usage
   * More than 14 Waypoints can be uploaded
   * Corrected Latitude for Trackpoints in the southern hemisphere
 
@@ -21,4 +21,3 @@
   * waypoint coordinates can now be negativ
   * added google maps exportTemplate
   * exportTemplates can be extended using preCalculations
-
