@@ -5,6 +5,7 @@
   * added command line interface, see [usage]
   * More than 14 Waypoints can be uploaded
   * Corrected Latitude for Trackpoints in the southern hemisphere
+  * added "fitlog" export format
 
 = Build 104 =
   * made it possible to upload tracks (currently only from gpx-files) just drop files named `*.gpx` with one (or multiple) tracks in the import directory and use option `d` from the main menu
