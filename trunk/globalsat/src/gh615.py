@@ -1,4 +1,4 @@
-import serial, string, math, datetime, time, os, sys, glob, ConfigParser, logging, logging.handlers
+import serial, re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, logging.handlers
 from gpxParser import GPXParser
 from stpy import Template, TemplateHTML
 
@@ -15,7 +15,7 @@ class gh615():
         'requestErrornousTrackSegment'    : '0200018283',
         'formatTracks'                    : '0200037900641E',
         'getWaypoints'                    : '0200017776',
-        'setWaypoints'                    : '0200%(payload)s76%(numberOfWaypoints)s%(waypoints)s%(checksum)s',
+        'setWaypoints'                    : '02%(payload)s76%(numberOfWaypoints)s%(waypoints)s%(checksum)s',
         'unitInformation'                 : '0200018584',
         'unknown'                         : '0200018382'
     }
@@ -350,12 +350,15 @@ class gh615():
         try:
             global timeFromStart
             for i in range(len(trackIds)):
-                trackIds[i] = '%04X' % int(trackIds[i])
+                #trackIds[i] = '%04X' % int(trackIds[i])
+                trackIds[i] = self.__dec2hex(int(trackIds[i]), 4)
             
             #calculate payload
-            payload = '%04X' % ((len(trackIds)*512)+896)   
+            #payload = '%04X' % ((len(trackIds)*512)+896) 
+            payload = self.__dec2hex((len(trackIds)*512)+896, 4)
             #number of tracks
-            numberOfTracks = '%04X' % len(trackIds)
+            #numberOfTracks = '%04X' % len(trackIds)
+            numberOfTracks = self.__dec2hex(len(trackIds), 4) 
             #checksum
             checksum = self.__checkersum(payload+numberOfTracks+''.join(trackIds))
               
@@ -611,7 +614,7 @@ class gh615():
     def exportWaypoints(self, waypoints, **kwargs):
         self.logger.debug('entered')
         #write to file
-        if kwargs['path']:
+        if 'path' in kwargs:
             filepath = os.path.join(kwargs['path'], 'waypoints.txt')
         else:    
             filepath = self.getAppPrefix('waypoints.txt')
@@ -625,7 +628,7 @@ class gh615():
     def importWaypoints(self, **kwargs):
         self.logger.debug('entered')
         #read from file
-        if kwargs['path']:
+        if 'path' in kwargs:
             filepath = os.path.join(kwargs['path'], 'waypoints.txt')
         else:    
             filepath = self.getAppPrefix('waypoints.txt')
@@ -646,26 +649,27 @@ class gh615():
     
     def setWaypoints(self, waypoints):
         self.logger.debug('entered')
-        try:
-            numberOfWaypoints = '%04X' % len(waypoints)
-            payload = self.__dec2hex(3+(18*len(waypoints)))
-                                    
+        try:                                    
             data = ''
             for waypoint in waypoints:                
-                latitude  = self.__coord2hex(waypoint['latitude'])
-                longitude = self.__coord2hex(waypoint['longitude'])
-                
+                latitude  = self.__coord2hex(float(waypoint['latitude']))
+                longitude = self.__coord2hex(float(waypoint['longitude']))
                 alt = self.__dec2hex(int(waypoint['altitude']),4)
                 type = self.__dec2hex(int(waypoint['type']),2)
-                title = self.__chr2hex(waypoint['title'].ljust(6))
+                title = self.__chr2hex(waypoint['title'].ljust(6)[:6])
             
-                data += title+str('00')+str('01')+alt+latitude+longitude
-                
+                data += title + str('00') + str('00') + alt + latitude + longitude
+            
+            #numberOfWaypoints = '%04X' % len(waypoints)
+            numberOfWaypoints = self.__dec2hex(len(waypoints),4)
+            #payload = self.__dec2hex(3+(18*len(waypoints)))    
+            payload = self.__dec2hex(3+(18*len(waypoints)),4) 
             checksum = self.__checkersum(str(payload)+str('76')+str(numberOfWaypoints)+data)
             
             self.__connectSerial()
             self.__writeSerial(self.COMMANDS['setWaypoints'] % {'payload':payload, 'numberOfWaypoints':numberOfWaypoints, 'waypoints': data, 'checksum':checksum})
             response = self.__chr2hex(self.serial.readline())
+            print "resposne", response
             
             if response[:8] == '76000200':
                 waypointsUpdated = self.__hex2dec(response[8:10])

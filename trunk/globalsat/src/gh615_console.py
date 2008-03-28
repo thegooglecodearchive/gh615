@@ -19,7 +19,21 @@ def tracklist():
     pass
 
 def choose():    
-    print "\n What do you want to do?\n [a]=get list of all tracks\n [b]=export a single track\n [c]=export all tracks\n [d]=upload tracks\n [e]=download waypoints\n [f]=upload waypoints\n -------------------\n [gg]=format tracks\n [h]=usb connection test\n [i]=get device information\n -------------------\n [q]=quit"
+    print "\n What do you want to do?\n\
+ ------TRACKS-------\n\
+ [a]=get list of all tracks\n\
+ [b]=export a single track\n\
+ [c]=export all tracks\n\
+ [d]=upload tracks\n\
+ -----WAYPOINTS-----\n\
+ [e]=download waypoints\n\
+ [f]=upload waypoints\n\
+ -----ETC-----------\n\
+ [gg]=format tracks\n\
+ [h]=usb connection test\n\
+ [i]=get device information\n\
+ -------------------\n\
+ [q]=quit"
     command = raw_input("=>").strip()
     
     if command == "a":
