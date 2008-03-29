@@ -52,7 +52,7 @@ Currently this is the way to do it:
   # Upload trackpoints (option `e`)
 
 === structure of waypoints.txt ===
-waypoints.txt is a simple dump of a python 'list'-data structure, which looks like this:
+waypoints.txt is a simple dump of a list of dictionaries, which looks like this:
 
 {{{
 [
