@@ -6,6 +6,7 @@ setup(
       console = ['..\\src\\gh615_console.py'],
       data_files = [
                     ("", ["..\\src\\config.ini"]),
+                    ("", ["..\\src\\README"]),
                     #("", ["..\\src\\cherrypy.conf"]),
                     ("exportTemplates", glob.glob("..\\src\\exportTemplates\\*.txt")),
                     ("exportTemplates", ['..\\src\\exportTemplates\\formats.ini']),
