@@ -658,7 +658,7 @@ class gh615():
                 type = self.__dec2hex(int(waypoint['type']),2)
                 title = self.__chr2hex(waypoint['title'].ljust(6)[:6])
             
-                data += title + str('00') + str('00') + alt + latitude + longitude
+                data += title + str('00') + type + alt + latitude + longitude
             
             #numberOfWaypoints = '%04X' % len(waypoints)
             numberOfWaypoints = self.__dec2hex(len(waypoints),4)
