@@ -1,5 +1,5 @@
+#summary links regarding the Globalsat GH615
 #labels Featured
-#helpful links for the Globalsat GH615
 
   * http://www.epplersoft.com/gpx/ Matthew Osburn and his crew created a page, which converts a [http://www.geocaching.com Geocaching.com] .loc file of waypoints to a waypoints.txt file format which can then directy be uploaded
 
