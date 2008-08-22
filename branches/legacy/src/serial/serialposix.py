@@ -1,19 +1,17 @@
 #!/usr/bin/env python
-#Python Serial Port Extension for Win32, Linux, BSD, Jython
-#module for serial IO for POSIX compatible systems, like Linux
-#see __init__.py
+# Python Serial Port Extension for Win32, Linux, BSD, Jython
+# module for serial IO for POSIX compatible systems, like Linux
+# see __init__.py
 #
-#(C) 2001-2003 Chris Liechti <cliechti@gmx.net>
+# (C) 2001-2008 Chris Liechti <cliechti@gmx.net>
 # this is distributed under a free software license, see license.txt
 #
-#parts based on code from Grant B. Edwards  <grante@visi.com>:
+# parts based on code from Grant B. Edwards  <grante@visi.com>:
 #  ftp://ftp.visi.com/users/grante/python/PosixSerial.py
 # references: http://www.easysw.com/~mike/serial/serial.html
 
 import sys, os, fcntl, termios, struct, select, errno
 from serialutil import *
-
-VERSION = "$Revision: 1.27 $".split()[1]     #extract CVS version
 
 #Do check the Python version as some constants have moved.
 if (sys.hexversion < 0x020100f0):
@@ -46,15 +44,15 @@ elif plat[:3] == 'bsd' or  \
      plat[:7] == 'openbsd' or \
      plat[:6] == 'darwin':   #BSD (confirmed for freebsd4: cuaa%d)
     def device(port):
-        return '/dev/cuaa%d' % port
+        return '/dev/cuad%d' % port
 
 elif plat[:6] == 'netbsd':   #NetBSD 1.6 testing by Erk
     def device(port):
         return '/dev/dty%02d' % port
 
-elif plat[:4] == 'irix':     #IRIX (not tested)
+elif plat[:4] == 'irix':     #IRIX (partialy tested)
     def device(port):
-        return '/dev/ttyf%d' % port
+        return '/dev/ttyf%d' % (port+1) #XXX different device names depending on flow control
 
 elif plat[:2] == 'hp':       #HP-UX (not tested)
     def device(port):
@@ -121,6 +119,46 @@ TIOCM_zero_str = struct.pack('I', 0)
 TIOCM_RTS_str = struct.pack('I', TIOCM_RTS)
 TIOCM_DTR_str = struct.pack('I', TIOCM_DTR)
 
+TIOCSBRK  = hasattr(TERMIOS, 'TIOCSBRK') and TERMIOS.TIOCSBRK or 0x5427
+TIOCCBRK  = hasattr(TERMIOS, 'TIOCCBRK') and TERMIOS.TIOCCBRK or 0x5428
+
+ASYNC_SPD_MASK = 0x1030
+ASYNC_SPD_CUST = 0x0030
+
+baudrate_constants = {
+    0:       0000000,  # hang up
+    50:      0000001,
+    75:      0000002,
+    110:     0000003,
+    134:     0000004,
+    150:     0000005,
+    200:     0000006,
+    300:     0000007,
+    600:     0000010,
+    1200:    0000011,
+    1800:    0000012,
+    2400:    0000013,
+    4800:    0000014,
+    9600:    0000015,
+    19200:   0000016,
+    38400:   0000017,
+    57600:   0010001,
+    115200:  0010002,
+    230400:  0010003,
+    460800:  0010004,
+    500000:  0010005,
+    576000:  0010006,
+    921600:  0010007,
+    1000000: 0010010,
+    1152000: 0010011,
+    1500000: 0010012,
+    2000000: 0010013,
+    2500000: 0010014,
+    3000000: 0010015,
+    3500000: 0010016,
+    4000000: 0010017
+}
+    
 
 class Serial(SerialBase):
     """Serial port class POSIX implementation. Serial port configuration is 
@@ -138,20 +176,29 @@ class Serial(SerialBase):
             self.fd = os.open(self.portstr, os.O_RDWR|os.O_NOCTTY|os.O_NONBLOCK)
         except Exception, msg:
             self.fd = None
-            raise SerialException("Could not open port: %s" % msg)
+            raise SerialException("could not open port %s: %s" % (self._port, msg))
         #~ fcntl.fcntl(self.fd, FCNTL.F_SETFL, 0)  #set blocking
         
-        self._reconfigurePort()
-        self._isOpen = True
+        try:
+            self._reconfigurePort()
+        except:
+            os.close(self.fd)
+            self.fd = None
+        else:
+            self._isOpen = True
         #~ self.flushInput()
         
         
     def _reconfigurePort(self):
-        """Set commuication parameters on opened port."""
+        """Set communication parameters on opened port."""
         if self.fd is None:
             raise SerialException("Can only operate on a valid port handle")
-            
+        custom_baud = None
+        
         vmin = vtime = 0                #timeout is done via select
+        if self._interCharTimeout is not None:
+            vmin = 1
+            vtime = int(self._interCharTimeout * 10)
         try:
             iflag, oflag, cflag, lflag, ispeed, ospeed, cc = termios.tcgetattr(self.fd)
         except termios.error, msg:      #if a port is nonexistent but has a /dev file, it'll fail here
@@ -175,7 +222,14 @@ class Serial(SerialBase):
         try:
             ispeed = ospeed = getattr(TERMIOS,'B%s' % (self._baudrate))
         except AttributeError:
-            raise ValueError('Invalid baud rate: %r' % self._baudrate)
+            try:
+                ispeed = ospeed = baudrate_constants[self._baudrate]
+            except KeyError:
+                #~ raise ValueError('Invalid baud rate: %r' % self._baudrate)
+                # may need custom baud rate, it isnt in our list.
+                ispeed = ospeed = getattr(TERMIOS, 'B38400')
+                custom_baud = int(self._baudrate) # store for later
+        
         #setup char len
         cflag &= ~TERMIOS.CSIZE
         if self._bytesize == 8:
@@ -242,6 +296,27 @@ class Serial(SerialBase):
         cc[TERMIOS.VTIME] = vtime
         #activate settings
         termios.tcsetattr(self.fd, TERMIOS.TCSANOW, [iflag, oflag, cflag, lflag, ispeed, ospeed, cc])
+        
+        # apply custom baud rate, if any
+        if custom_baud is not None:
+            import array
+            buf = array.array('i', [0] * 32)
+
+            # get serial_struct
+            FCNTL.ioctl(self.fd, TERMIOS.TIOCGSERIAL, buf)
+
+            # set custom divisor
+            buf[6] = buf[7] / custom_baud
+
+            # update flags
+            buf[4] &= ~ASYNC_SPD_MASK
+            buf[4] |= ASYNC_SPD_CUST
+
+            # set serial_struct
+            try:
+                res = FCNTL.ioctl(self.fd, TERMIOS.TIOCSSERIAL, buf)
+            except IOError:
+                raise ValueError('Failed to set custom baud rate: %r' % self._baudrate)
 
     def close(self):
         """Close port"""
@@ -277,13 +352,15 @@ class Serial(SerialBase):
                     break   #timeout
                 buf = os.read(self.fd, size-len(read))
                 read = read + buf
-                if self._timeout >= 0 and not buf:
+                if (self._timeout >= 0 or self._interCharTimeout > 0) and not buf:
                     break  #early abort on timeout
         return read
 
     def write(self, data):
         """Output the given string over the serial port."""
         if self.fd is None: raise portNotOpenError
+        if not isinstance(data, str):
+            raise TypeError('expected str, got %s' % type(data))
         t = len(data)
         d = data
         while t > 0:
@@ -321,24 +398,32 @@ class Serial(SerialBase):
             raise portNotOpenError
         termios.tcflush(self.fd, TERMIOS.TCOFLUSH)
 
-    def sendBreak(self):
-        """Send break condition."""
+    def sendBreak(self, duration=0.25):
+        """Send break condition. Timed, returns to idle state after given duration."""
         if self.fd is None:
             raise portNotOpenError
-        termios.tcsendbreak(self.fd, 0)
+        termios.tcsendbreak(self.fd, int(duration/0.25))
 
-    def setRTS(self,on=1):
+    def setBreak(self, level=1):
+        """Set break: Controls TXD. When active, to transmitting is possible."""
+        if self.fd is None: raise portNotOpenError
+        if level:
+            fcntl.ioctl(self.fd, TIOCSBRK)
+        else:
+            fcntl.ioctl(self.fd, TIOCCBRK)
+
+    def setRTS(self, level=1):
         """Set terminal status line: Request To Send"""
         if self.fd is None: raise portNotOpenError
-        if on:
+        if level:
             fcntl.ioctl(self.fd, TIOCMBIS, TIOCM_RTS_str)
         else:
             fcntl.ioctl(self.fd, TIOCMBIC, TIOCM_RTS_str)
 
-    def setDTR(self,on=1):
+    def setDTR(self, level=1):
         """Set terminal status line: Data Terminal Ready"""
         if self.fd is None: raise portNotOpenError
-        if on:
+        if level:
             fcntl.ioctl(self.fd, TIOCMBIS, TIOCM_DTR_str)
         else:
             fcntl.ioctl(self.fd, TIOCMBIC, TIOCM_DTR_str)
@@ -404,3 +489,4 @@ if __name__ == '__main__':
     print repr(s.read(5))
     print s.inWaiting()
     del s
+

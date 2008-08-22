@@ -1,17 +1,15 @@
 #! python
-#Python Serial Port Extension for Win32, Linux, BSD, Jython
-#serial driver for win32
-#see __init__.py
+# Python Serial Port Extension for Win32, Linux, BSD, Jython
+# serial driver for win32
+# see __init__.py
 #
-#(C) 2001-2003 Chris Liechti <cliechti@gmx.net>
+# (C) 2001-2008 Chris Liechti <cliechti@gmx.net>
 # this is distributed under a free software license, see license.txt
 
 import win32file  # The base COM port and file IO functions.
 import win32event # We use events and the WaitFor[Single|Multiple]Objects functions.
 import win32con   # constants.
 from serialutil import *
-
-VERSION = "$Revision: 1.31 $".split()[1]     #extract CVS version
 
 #from winbase.h. these should realy be in win32con
 MS_CTS_ON  = 16
@@ -21,13 +19,7 @@ MS_RLSD_ON = 128
 
 def device(portnum):
     """Turn a port number into a device name"""
-    #the "//./COMx" format is required for devices >= 9
-    #not all versions of windows seem to support this propperly
-    #so that the first few ports are used with the DOS device name
-    if portnum < 9:
-        return 'COM%d' % (portnum+1) #numbers are transformed to a string
-    else:
-        return r'\\.\COM%d' % (portnum+1)
+    return 'COM%d' % (portnum+1) #numbers are transformed to a string
 
 class Serial(SerialBase):
     """Serial port implemenation for Win32. This implemenatation requires a 
@@ -42,17 +34,23 @@ class Serial(SerialBase):
         if self._port is None:
             raise SerialException("Port must be configured before it can be used.")
         self.hComPort = None
+        # the "\\.\COMx" format is required for devices other than COM1-COM8
+        # not all versions of windows seem to support this properly
+        # so that the first few ports are used with the DOS device name
+        port = self.portstr
+        if port.upper().startswith('COM') and int(port[3:]) > 8:
+            port = '\\\\.\\' + port
         try:
-            self.hComPort = win32file.CreateFile(self.portstr,
+            self.hComPort = win32file.CreateFile(port,
                    win32con.GENERIC_READ | win32con.GENERIC_WRITE,
                    0, # exclusive access
                    None, # no security
                    win32con.OPEN_EXISTING,
-                   win32con.FILE_ATTRIBUTE_NORMAL | win32con.FILE_FLAG_OVERLAPPED,
+                   win32con.FILE_FLAG_OVERLAPPED,
                    None)
         except Exception, msg:
             self.hComPort = None    #'cause __del__ is called anyway
-            raise SerialException("could not open port: %s" % msg)
+            raise SerialException("could not open port %s: %s" % (self.portstr, msg))
         # Setup a 4k buffer
         win32file.SetupComm(self.hComPort, 4096, 4096)
 
@@ -60,7 +58,7 @@ class Serial(SerialBase):
         self._orgTimeouts = win32file.GetCommTimeouts(self.hComPort)
 
         self._rtsState = win32file.RTS_CONTROL_ENABLE
-        self._dtrState = win32file.RTS_CONTROL_ENABLE
+        self._dtrState = win32file.DTR_CONTROL_ENABLE
 
         self._reconfigurePort()
         
@@ -78,7 +76,7 @@ class Serial(SerialBase):
         self._isOpen = True
 
     def _reconfigurePort(self):
-        """Set commuication parameters on opened port."""
+        """Set communication parameters on opened port."""
         if not self.hComPort:
             raise SerialException("Can only operate on a valid port handle")
         
@@ -93,6 +91,9 @@ class Serial(SerialBase):
             timeouts = (win32con.MAXDWORD, 0, 0, 0, 0)
         else:
             timeouts = (0, 0, int(self._timeout*1000), 0, 0)
+        if self._timeout != 0 and self._interCharTimeout is not None:
+            timeouts = (int(self._interCharTimeout * 1000),) + timeouts[1:]
+            
         if self._writeTimeout is None:
             pass
         elif self._writeTimeout == 0:
@@ -127,6 +128,12 @@ class Serial(SerialBase):
             comDCB.fParity      = 1 # Dis/Enable Parity Check
         elif self._parity == PARITY_ODD:
             comDCB.Parity       = win32file.ODDPARITY
+            comDCB.fParity      = 1 # Dis/Enable Parity Check
+        elif self._parity == PARITY_MARK:
+            comDCB.Parity       = win32file.MARKPARITY
+            comDCB.fParity      = 1 # Dis/Enable Parity Check
+        elif self._parity == PARITY_SPACE:
+            comDCB.Parity       = win32file.SPACEPARITY
             comDCB.fParity      = 1 # Dis/Enable Parity Check
         else:
             raise ValueError("Unsupported parity mode: %r" % self._parity)
@@ -170,10 +177,16 @@ class Serial(SerialBase):
         """Close port"""
         if self._isOpen:
             if self.hComPort:
-                #Restore original timeout values:
-                win32file.SetCommTimeouts(self.hComPort, self._orgTimeouts)
-                #Close COM-Port:
+                try:
+                    # Restore original timeout values:
+                    win32file.SetCommTimeouts(self.hComPort, self._orgTimeouts)
+                except win32file.error:
+                    # ignore errors. can happen for unplugged USB serial devices
+                    pass
+                # Close COM-Port:
                 win32file.CloseHandle(self.hComPort)
+                win32file.CloseHandle(self._overlappedRead.hEvent)
+                win32file.CloseHandle(self._overlappedWrite.hEvent)
                 self.hComPort = None
             self._isOpen = False
 
@@ -207,28 +220,24 @@ class Serial(SerialBase):
                 rc, buf = win32file.ReadFile(self.hComPort, win32file.AllocateReadBuffer(size), self._overlappedRead)
                 n = win32file.GetOverlappedResult(self.hComPort, self._overlappedRead, 1)
                 read = str(buf[:n])
-                '''
-                if len(read) != 0:
-                    read = '%(#)02X' % {"#": ord(read)}
-                else:
-                    read = '';
-                '''
         else:
             read = ''
         return read
 
-    def write(self, s):
+    def write(self, data):
         """Output the given string over the serial port."""
         if not self.hComPort: raise portNotOpenError
+        if not isinstance(data, str):
+            raise TypeError('expected str, got %s' % type(data))
         #print repr(s),
-        if s:
+        if data:
             #~ win32event.ResetEvent(self._overlappedWrite.hEvent)
-            err, n = win32file.WriteFile(self.hComPort, s, self._overlappedWrite)
+            err, n = win32file.WriteFile(self.hComPort, data, self._overlappedWrite)
             if err: #will be ERROR_IO_PENDING:
                 # Wait for the write to complete.
                 #~ win32event.WaitForSingleObject(self._overlappedWrite.hEvent, win32event.INFINITE)
                 n = win32file.GetOverlappedResult(self.hComPort, self._overlappedWrite, 1)
-                if n != len(s):
+                if n != len(data):
                     raise writeTimeoutError
                 
 
@@ -243,16 +252,23 @@ class Serial(SerialBase):
         if not self.hComPort: raise portNotOpenError
         win32file.PurgeComm(self.hComPort, win32file.PURGE_TXCLEAR | win32file.PURGE_TXABORT)
 
-    def sendBreak(self):
-        """Send break condition."""
+    def sendBreak(self, duration=0.25):
+        """Send break condition. Timed, returns to idle state after given duration."""
         if not self.hComPort: raise portNotOpenError
         import time
         win32file.SetCommBreak(self.hComPort)
-        #TODO: how to set the correct duration??
-        time.sleep(0.020)
+        time.sleep(duration)
         win32file.ClearCommBreak(self.hComPort)
 
-    def setRTS(self,level=1):
+    def setBreak(self, level=1):
+        """Set break: Controls TXD. When active, to transmitting is possible."""
+        if not self.hComPort: raise portNotOpenError
+        if level:
+            win32file.SetCommBreak(self.hComPort)
+        else:
+            win32file.ClearCommBreak(self.hComPort)
+
+    def setRTS(self, level=1):
         """Set terminal status line: Request To Send"""
         if not self.hComPort: raise portNotOpenError
         if level:
@@ -262,7 +278,7 @@ class Serial(SerialBase):
             self._rtsState = win32file.RTS_CONTROL_DISABLE
             win32file.EscapeCommFunction(self.hComPort, win32file.CLRRTS)
 
-    def setDTR(self,level=1):
+    def setDTR(self, level=1):
         """Set terminal status line: Data Terminal Ready"""
         if not self.hComPort: raise portNotOpenError
         if level:
@@ -304,17 +320,17 @@ class Serial(SerialBase):
 
 #Nur Testfunktion!!
 if __name__ == '__main__':
-    print __name__
+    s = Serial(0)
+    print s
+    
     s = Serial()
     print s
     
-    s = Serial(0)
-    print s
     
     s.baudrate = 19200
     s.databits = 7
     s.close()
-    s.port = 3
+    s.port = 0
     s.open()
     print s
 

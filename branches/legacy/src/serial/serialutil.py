@@ -1,11 +1,11 @@
 #! python
-#Python Serial Port Extension for Win32, Linux, BSD, Jython
-#see __init__.py
+# Python Serial Port Extension for Win32, Linux, BSD, Jython
+# see __init__.py
 #
-#(C) 2001-2003 Chris Liechti <cliechti@gmx.net>
+# (C) 2001-2008 Chris Liechti <cliechti@gmx.net>
 # this is distributed under a free software license, see license.txt
 
-PARITY_NONE, PARITY_EVEN, PARITY_ODD = 'N', 'E', 'O'
+PARITY_NONE, PARITY_EVEN, PARITY_ODD, PARITY_MARK, PARITY_SPACE = 'N', 'E', 'O', 'M', 'S'
 STOPBITS_ONE, STOPBITS_TWO = (1, 2)
 FIVEBITS, SIXBITS, SEVENBITS, EIGHTBITS = (5,6,7,8)
 
@@ -13,6 +13,8 @@ PARITY_NAMES = {
     PARITY_NONE: 'None',
     PARITY_EVEN: 'Even',
     PARITY_ODD:  'Odd',
+    PARITY_MARK: 'Mark',
+    PARITY_SPACE:'Space',
 }
 
 XON  = chr(17)
@@ -96,6 +98,16 @@ class FileLike(object):
         """flush of file like objects"""
         pass
 
+    # iterator for e.g. "for line in Serial(0): ..." usage
+    def next(self):
+        line = self.readline()
+        if not line: raise StopIteration
+        return line
+
+    def __iter__(self):
+        return self
+
+
 class SerialBase(FileLike):
     """Serial port base class. Provides __init__ function and properties to
        get/set port settings."""
@@ -123,6 +135,7 @@ class SerialBase(FileLike):
                  rtscts=0,              #enable RTS/CTS flow control
                  writeTimeout=None,     #set a timeout for writes
                  dsrdtr=None,           #None: use rtscts setting, dsrdtr override if true or false
+                 interCharTimeout=None  #Inter-character timeout, None to disable
                  ):
         """Initialize comm port object. If a port is given, then the port will be
            opened immediately. Otherwise a Serial port object in closed state
@@ -135,10 +148,11 @@ class SerialBase(FileLike):
         self._parity   = None           #correct value is assigned below trough properties
         self._stopbits = None           #correct value is assigned below trough properties
         self._timeout  = None           #correct value is assigned below trough properties
-        self._writeTimeout  = None           #correct value is assigned below trough properties
+        self._writeTimeout = None       #correct value is assigned below trough properties
         self._xonxoff  = None           #correct value is assigned below trough properties
         self._rtscts   = None           #correct value is assigned below trough properties
         self._dsrdtr   = None           #correct value is assigned below trough properties
+        self._interCharTimeout = None   #correct value is assigned below trough properties
         
         #assign values using get/set methods using the properties feature
         self.port     = port
@@ -151,6 +165,7 @@ class SerialBase(FileLike):
         self.xonxoff  = xonxoff
         self.rtscts   = rtscts
         self.dsrdtr   = dsrdtr
+        self.interCharTimeout = interCharTimeout
         
         if port is not None:
             self.open()
@@ -211,7 +226,7 @@ class SerialBase(FileLike):
         try:
             self._baudrate = int(baudrate)
         except TypeError:
-            raise ValueError("Not a valid baudrate: %r" % baudrate)
+            raise ValueError("Not a valid baudrate: %r" % (baudrate,))
         else:
             if self._isOpen:  self._reconfigurePort()
         
@@ -224,7 +239,7 @@ class SerialBase(FileLike):
 
     def setByteSize(self, bytesize):
         """Change byte size."""
-        if bytesize not in self.BYTESIZES: raise ValueError("Not a valid byte size: %r" % bytesize)
+        if bytesize not in self.BYTESIZES: raise ValueError("Not a valid byte size: %r" % (bytesize,))
         self._bytesize = bytesize
         if self._isOpen: self._reconfigurePort()
     
@@ -237,7 +252,7 @@ class SerialBase(FileLike):
 
     def setParity(self, parity):
         """Change parity setting."""
-        if parity not in self.PARITIES: raise ValueError("Not a valid parity: %r" % parity)
+        if parity not in self.PARITIES: raise ValueError("Not a valid parity: %r" % (parity,))
         self._parity = parity
         if self._isOpen: self._reconfigurePort()
     
@@ -250,7 +265,7 @@ class SerialBase(FileLike):
 
     def setStopbits(self, stopbits):
         """Change stopbits size."""
-        if stopbits not in self.STOPBITS: raise ValueError("Not a valid stopbit size: %r" % stopbits)
+        if stopbits not in self.STOPBITS: raise ValueError("Not a valid stopbit size: %r" % (stopbits,))
         self._stopbits = stopbits
         if self._isOpen: self._reconfigurePort()
     
@@ -264,11 +279,11 @@ class SerialBase(FileLike):
     def setTimeout(self, timeout):
         """Change timeout setting."""
         if timeout is not None:
-            if timeout < 0: raise ValueError("Not a valid timeout: %r" % timeout)
+            if timeout < 0: raise ValueError("Not a valid timeout: %r" % (timeout,))
             try:
                 timeout + 1     #test if it's a number, will throw a TypeError if not...
             except TypeError:
-                raise ValueError("Not a valid timeout: %r" % timeout)
+                raise ValueError("Not a valid timeout: %r" % (timeout,))
         
         self._timeout = timeout
         if self._isOpen: self._reconfigurePort()
@@ -283,7 +298,7 @@ class SerialBase(FileLike):
     def setWriteTimeout(self, timeout):
         """Change timeout setting."""
         if timeout is not None:
-            if timeout < 0: raise ValueError("Not a valid timeout: %r" % timeout)
+            if timeout < 0: raise ValueError("Not a valid timeout: %r" % (timeout,))
             try:
                 timeout + 1     #test if it's a number, will throw a TypeError if not...
             except TypeError:
@@ -336,7 +351,26 @@ class SerialBase(FileLike):
         return self._dsrdtr
     
     dsrdtr = property(getDsrDtr, setDsrDtr, "DSR/DTR flow control setting")
+
+    def setInterCharTimeout(self, interCharTimeout):
+        """Change inter-character timeout setting."""
+        if interCharTimeout is not None:
+            if interCharTimeout < 0: raise ValueError("Not a valid timeout: %r" % interCharTimeout)
+            try:
+                interCharTimeout + 1     #test if it's a number, will throw a TypeError if not...
+            except TypeError:
+                raise ValueError("Not a valid timeout: %r" % interCharTimeout)
+        
+        self._interCharTimeout = interCharTimeout
+        if self._isOpen: self._reconfigurePort()
     
+    def getInterCharTimeout(self):
+        """Get the current inter-character timeout setting."""
+        return self._interCharTimeout
+    
+    interCharTimeout = property(getInterCharTimeout, setInterCharTimeout, doc="Inter-character timeout setting for read()")
+
+
     #  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -  -
 
     def __repr__(self):

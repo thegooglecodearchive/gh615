@@ -1,30 +1,54 @@
 #!jython
-#Python Serial Port Extension for Win32, Linux, BSD, Jython
-#module for serial IO for Jython and JavaComm
-#see __init__.py
 #
-#(C) 2002-2003 Chris Liechti <cliechti@gmx.net>
+# Python Serial Port Extension for Win32, Linux, BSD, Jython
+# module for serial IO for Jython and JavaComm
+# see __init__.py
+#
+# (C) 2002-2008 Chris Liechti <cliechti@gmx.net>
 # this is distributed under a free software license, see license.txt
 
-import gnu.io
 from serialutil import *
 
-VERSION = "$Revision: 1.8 $".split()[1]     #extract CVS version
+def my_import(name):
+    mod = __import__(name)
+    components = name.split('.')
+    for comp in components[1:]:
+        mod = getattr(mod, comp)
+    return mod
+
+def detect_java_comm(names):
+    """try given list of modules and return that imports"""
+    for name in names:
+        try:
+            mod = my_import(name)
+            mod.SerialPort
+            return mod
+        except (ImportError, AttributeError):
+            pass
+    raise ImportError("No Java Communications API implementation found")
+
+# Java Communications API implementations
+# http://mho.republika.pl/java/comm/
+
+comm = detect_java_comm([
+    'javax.comm', # Sun/IBM
+    'gnu.io',     # RXTX
+])
 
 
 def device(portnumber):
     """Turn a port number into a device name"""
-    enum = gnu.io.CommPortIdentifier.getPortIdentifiers()
+    enum = comm.CommPortIdentifier.getPortIdentifiers()
     ports = []
     while enum.hasMoreElements():
         el = enum.nextElement()
-        if el.getPortType() == gnu.io.CommPortIdentifier.PORT_SERIAL:
+        if el.getPortType() == comm.CommPortIdentifier.PORT_SERIAL:
             ports.append(el)
     return ports[portnumber].getName()
 
 class Serial(SerialBase):
-    """Serial port class, implemented with gnu.io and thus usable with
-       jython and the appropriate java extension."""
+    """Serial port class, implemented with Java Communications API and
+       thus usable with jython and the appropriate java extension."""
     
     def open(self):
         """Open port with current settings. This may throw a SerialException
@@ -32,9 +56,9 @@ class Serial(SerialBase):
         if self._port is None:
             raise SerialException("Port must be configured before it can be used.")
         if type(self._port) == type(''):      #strings are taken directly
-            portId = gnu.io.CommPortIdentifier.getPortIdentifier(self._port)
+            portId = comm.CommPortIdentifier.getPortIdentifier(self._port)
         else:
-            portId = gnu.io.CommPortIdentifier.getPortIdentifier(device(self._port))     #numbers are transformed to a comportid obj
+            portId = comm.CommPortIdentifier.getPortIdentifier(device(self._port))     #numbers are transformed to a comportid obj
         try:
             self.sPort = portId.open("python serial module", 10)
         except Exception, msg:
@@ -52,45 +76,45 @@ class Serial(SerialBase):
         
         self.sPort.enableReceiveTimeout(30)
         if self._bytesize == FIVEBITS:
-            jdatabits = gnu.io.SerialPort.DATABITS_5
+            jdatabits = comm.SerialPort.DATABITS_5
         elif self._bytesize == SIXBITS:
-            jdatabits = gnu.io.SerialPort.DATABITS_6
+            jdatabits = comm.SerialPort.DATABITS_6
         elif self._bytesize == SEVENBITS:
-            jdatabits = gnu.io.SerialPort.DATABITS_7
+            jdatabits = comm.SerialPort.DATABITS_7
         elif self._bytesize == EIGHTBITS:
-            jdatabits = gnu.io.SerialPort.DATABITS_8
+            jdatabits = comm.SerialPort.DATABITS_8
         else:
             raise ValueError("unsupported bytesize: %r" % self._bytesize)
         
         if self._stopbits == STOPBITS_ONE:
-            jstopbits = gnu.io.SerialPort.STOPBITS_1
+            jstopbits = comm.SerialPort.STOPBITS_1
         elif stopbits == STOPBITS_ONE_HALVE:
-            self._jstopbits = gnu.io.SerialPort.STOPBITS_1_5
+            self._jstopbits = comm.SerialPort.STOPBITS_1_5
         elif self._stopbits == STOPBITS_TWO:
-            jstopbits = gnu.io.SerialPort.STOPBITS_2
+            jstopbits = comm.SerialPort.STOPBITS_2
         else:
             raise ValueError("unsupported number of stopbits: %r" % self._stopbits)
 
         if self._parity == PARITY_NONE:
-            jparity = gnu.io.SerialPort.PARITY_NONE
+            jparity = comm.SerialPort.PARITY_NONE
         elif self._parity == PARITY_EVEN:
-            jparity = gnu.io.SerialPort.PARITY_EVEN
+            jparity = comm.SerialPort.PARITY_EVEN
         elif self._parity == PARITY_ODD:
-            jparity = gnu.io.SerialPort.PARITY_ODD
-        #~ elif self._parity == PARITY_MARK:
-            #~ jparity = gnu.io.SerialPort.PARITY_MARK
-        #~ elif self._parity == PARITY_SPACE:
-            #~ jparity = gnu.io.SerialPort.PARITY_SPACE
+            jparity = comm.SerialPort.PARITY_ODD
+        elif self._parity == PARITY_MARK:
+            jparity = comm.SerialPort.PARITY_MARK
+        elif self._parity == PARITY_SPACE:
+            jparity = comm.SerialPort.PARITY_SPACE
         else:
             raise ValueError("unsupported parity type: %r" % self._parity)
 
         jflowin = jflowout = 0
         if self._rtscts:
-            jflowin  |=  gnu.io.SerialPort.FLOWCONTROL_RTSCTS_IN
-            jflowout |=  gnu.io.SerialPort.FLOWCONTROL_RTSCTS_OUT
+            jflowin  |=  comm.SerialPort.FLOWCONTROL_RTSCTS_IN
+            jflowout |=  comm.SerialPort.FLOWCONTROL_RTSCTS_OUT
         if self._xonxoff:
-            jflowin  |=  gnu.io.SerialPort.FLOWCONTROL_XONXOFF_IN
-            jflowout |=  gnu.io.SerialPort.FLOWCONTROL_XONXOFF_OUT
+            jflowin  |=  comm.SerialPort.FLOWCONTROL_XONXOFF_IN
+            jflowout |=  comm.SerialPort.FLOWCONTROL_XONXOFF_OUT
         
         self.sPort.setSerialPortParams(baudrate, jdatabits, jstopbits, jparity)
         self.sPort.setFlowControlMode(jflowin | jflowout)
@@ -152,20 +176,25 @@ class Serial(SerialBase):
         if not self.sPort: raise portNotOpenError
         self._outstream.flush()
 
-    def sendBreak(self):
-        """Send break condition."""
+    def sendBreak(self, duration=0.25):
+        """Send break condition. Timed, returns to idle state after given duration."""
         if not self.sPort: raise portNotOpenError
-        self.sPort.sendBreak()
+        self.sPort.sendBreak(duration*1000.0)
 
-    def setRTS(self,on=1):
+    def setBreak(self, level=1):
+        """Set break: Controls TXD. When active, to transmitting is possible."""
+        if self.fd is None: raise portNotOpenError
+        raise SerialException("The setBreak function is not implemented in java.")
+
+    def setRTS(self, level=1):
         """Set terminal status line: Request To Send"""
         if not self.sPort: raise portNotOpenError
-        self.sPort.setRTS(on)
+        self.sPort.setRTS(level)
         
-    def setDTR(self,on=1):
+    def setDTR(self, level=1):
         """Set terminal status line: Data Terminal Ready"""
         if not self.sPort: raise portNotOpenError
-        self.sPort.setDTR(on)
+        self.sPort.setDTR(level)
 
     def getCTS(self):
         """Read terminal status line: Clear To Send"""
@@ -207,6 +236,5 @@ if __name__ == '__main__':
     print repr(s.read(5))
     print s.inWaiting()
     del s
-
 
 

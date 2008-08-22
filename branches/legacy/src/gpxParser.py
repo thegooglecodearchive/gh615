@@ -3,7 +3,7 @@ from xml.dom import minidom, Node
 
 #http://the.taoofmac.com/space/blog/2005/10/11/2359
 class GPXParser:
-  def __init__(self, data, mode = 'file'):
+  def __init__(self, data, mode = 'file'):      
     self.tracks = []
     
     try:
@@ -29,58 +29,48 @@ class GPXParser:
     distance = math.sqrt( yDistance**2 + xDistance**2 )
     return int(distance * metersPerNauticalMile)
 
-  def parseTrack(self, trk):   
+  def parseTrack(self, trk): 
+    from gh615_oo import Track, Trackpoint    
+        
     #default track
-    track = {
-        'date':        datetime.datetime.now(),
-        'duration':    0,
-        'distance':    0,
-        'calories':    0,
-        'topspeed':    0,
-        'trackpoints': []
-    }
-       
+    track = Track()
+
     for trkseg in trk.getElementsByTagName('trkseg'):
-      
+    
       if trkseg.getElementsByTagName('trkpt')[0].getElementsByTagName('time'):
-          track['date'] = datetime.datetime.strptime(trkseg.getElementsByTagName('trkpt')[0].getElementsByTagName('time')[0].firstChild.data,'%Y-%m-%dT%H:%M:%SZ')
+          track.date = datetime.datetime.strptime(trkseg.getElementsByTagName('trkpt')[0].getElementsByTagName('time')[0].firstChild.data,'%Y-%m-%dT%H:%M:%SZ')
       
-      timeToHere = track['date']
-      for i, trkpt in enumerate(trkseg.getElementsByTagName('trkpt')):
+      timeToHere = track.date
+      for i, trkpt in enumerate(trkseg.getElementsByTagName('trkpt')):          
           #default trackpoint
-          trackpoint = {
-            'latitude':  0,
-            'longitude': 0,
-            'altitude':  0,
-            'speed':     0,
-            'heartrate': 0,
-            'interval':  1,
-          }
+          trackpoint = Trackpoint()
           
-          trackpoint['latitude'] = float(trkpt.getAttribute('lat'))
-          trackpoint['longitude'] = float(trkpt.getAttribute('lon'))
+          trackpoint.latitude = float(trkpt.getAttribute('lat'))
+          trackpoint.longitude = float(trkpt.getAttribute('lon'))
           
           #setting defaults for non required elements
           if trkpt.getElementsByTagName('ele'):
-             track['altitude'] = int(float(trkpt.getElementsByTagName('ele')[0].firstChild.data))
+             track.altitude = int(float(trkpt.getElementsByTagName('ele')[0].firstChild.data))
           
           if trkpt.getElementsByTagName('speed'):
-             trackpoint['speed'] = int(float(trkpt.getElementsByTagName('speed')[0].firstChild.data))
-             if trackpoint['speed'] > track['topspeed']:
-                 track['topspeed'] = trackpoint['speed']
+             trackpoint.speed = int(float(trkpt.getElementsByTagName('speed')[0].firstChild.data))
+             if trackpoint.speed > track.topspeed:
+                 track.topspeed = trackpoint.speed
              
           if trkpt.getElementsByTagName('time'):
               time = datetime.datetime.strptime(trkpt.getElementsByTagName('time')[0].firstChild.data,'%Y-%m-%dT%H:%M:%SZ')
               difference = time - timeToHere
               timeToHere = time
-              trackpoint['interval'] = difference.seconds*100
-              track['duration'] += trackpoint['interval']
+              trackpoint.int = difference.seconds*100
+              track.duration += trackpoint.int
                         
           #calculate total distance
           if i > 0:
-              track['distance'] += self.calcDistance(trackpoint['latitude'], trackpoint['longitude'], track['trackpoints'][len(track['trackpoints'])-1]['latitude'], track['trackpoints'][len(track['trackpoints'])-1]['longitude'])
+              #track.distance += self.calcDistance(trackpoint.latitude, trackpoint.longitude, track.trackpoints[len(track.trackpoints)-1]['latitude'], track.trackpoints[len(track.trackpoints)-1]['longitude'])
+              track.distance += 1
           
           #add trackpoint to track
-          track['trackpoints'].append(trackpoint)
+          track.trackpoints.append(trackpoint)
+      track.trackpointCount = len(track.trackpoints)
     
     self.tracks.append(track)
