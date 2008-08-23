@@ -30,7 +30,7 @@ class GPXParser:
     return int(distance * metersPerNauticalMile)
 
   def parseTrack(self, trk): 
-    from gh615_oo import Track, Trackpoint    
+    from gh600 import Track, Trackpoint    
         
     #default track
     track = Track()
@@ -61,7 +61,7 @@ class GPXParser:
               time = datetime.datetime.strptime(trkpt.getElementsByTagName('time')[0].firstChild.data,'%Y-%m-%dT%H:%M:%SZ')
               difference = time - timeToHere
               timeToHere = time
-              trackpoint.int = difference.seconds*100
+              trackpoint.int = difference.seconds * 100
               track.duration += trackpoint.int
                         
           #calculate total distance

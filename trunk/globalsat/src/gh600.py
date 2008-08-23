@@ -1,7 +1,7 @@
 from __future__ import with_statement
 import serial, re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, logging.handlers
 
-from decimal import *
+from decimal import Decimal
 from gpxParser import GPXParser
 from stpy import Template, TemplateHTML
 
@@ -88,6 +88,12 @@ class Track(object):
         self.trackpointCount = trackpointCount
         self.trackpoints     = []
     
+    def __getitem__(self, attr):
+        return getattr(self, attr)
+    
+    def __str__(self):
+        #return row.substitute(id='%02d' % track.id, date=track.date, distance='%08d' % track.distance, calories='%08d' % track.calories, topspeed='%08d' % track.topspeed, trackpoints=' ' % track.trackpointCount)
+        return "%02i %s %08i %08i %08i %08i %04i" % (self.id, self.date, self.distance, self.calories, self.topspeed, self.trackpointCount, 0)
 
     def __hex__(self):
         date = Utilities.dec2hex(self.date.strftime('%y'),2) + Utilities.dec2hex(self.date.strftime('%m'),2) + \
@@ -109,14 +115,11 @@ class Track(object):
             #first segments uses 90, all following 91
             isFirst = ('91','90')[frome == 0]
             payload = Utilities.dec2hex(27 + (15 * ((to-frome) + 1)), 4)                      
-            checksum = Utilities.checkersum((Gh615.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':'00'})[2:-2])
+            checksum = Utilities.checkersum((GH600.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':'00'})[2:-2])
                        
-            chunks.append(Gh615.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':checksum})
+            chunks.append(GH600.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':checksum})
         return ''.join(chunks)
-    
-    def __getitem__(self, attr):
-        return getattr(self, attr)
-    
+        
     def fromHex(self, hex):
         if len(hex) == 44 or len(hex) == 48:
             self.date            = datetime.datetime(2000+Utilities.hex2dec(hex[0:2]), Utilities.hex2dec(hex[2:4]), Utilities.hex2dec(hex[4:6]), Utilities.hex2dec(hex[6:8]), Utilities.hex2dec(hex[8:10]), Utilities.hex2dec(hex[10:12]))
@@ -130,7 +133,7 @@ class Track(object):
                 self.id = Utilities.hex2dec(hex[44:48])
             return self
         else:
-            raise Gh615ParseException
+            raise GH600ParseException
         
     def addTrackpointsFromHex(self, hex):        
         trackpoints = Utilities.chop(hex,30)
@@ -146,6 +149,73 @@ class Track(object):
     def export(self, format, **kwargs):
         format = ExportFormat(format)
         format.exportTrack(self)
+        
+        
+class TrackWithLaps(Track):
+    def __init__(self, date = '', duration = 0, distance = 0, calories = 0, topspeed = 0, trackpointCount = 0, lapCount = 0):
+        self.lapCount = lapCount
+        self.laps = []
+        super(TrackWithLaps, self).__init__(date, duration,distance, calories, topspeed, trackpointCount)
+    
+    def __str__(self):
+        return "%02i %s %08i %08i %08i %08i %04i" % (self.id, self.date, self.distance, self.calories, self.topspeed, self.trackpointCount, self.lapCount)
+    
+    def fromHex(self, hex):
+        if len(hex) == 58 or len(hex) == 62:            
+            self.date            = datetime.datetime(2000+Utilities.hex2dec(hex[0:2]), Utilities.hex2dec(hex[2:4]), Utilities.hex2dec(hex[4:6]), Utilities.hex2dec(hex[6:8]), Utilities.hex2dec(hex[8:10]), Utilities.hex2dec(hex[10:12]))
+            self.lapCount        = Utilities.hex2dec(hex[12:14])
+            self.duration        = Utilities.hex2dec(hex[14:22])
+            self.distance        = Utilities.hex2dec(hex[22:30])
+            self.calories        = Utilities.hex2dec(hex[30:34])
+            self.topspeed        = Utilities.hex2dec(hex[34:38])
+            #self.unknown         = Utilities.hex2dec(hex[38:42])
+            self.trackpointCount = Utilities.hex2dec(hex[42:50])
+            #self.unknown2        = Utilities.hex2dec(hex[50:54])
+            #self.unknown3        = Utilities.hex2dec(hex[54:58])
+                
+            if len(hex) == 62:
+                self.id = Utilities.hex2dec(hex[58:62])
+            return self
+        else:
+            raise GH600ParseException
+        
+    def addLapsFromHex(self, hex):
+        laps = Utilities.chop(hex,44)
+        for lap in laps: 
+            parsedLap = Lap().fromHex(lap)
+            parsedLap.calculateDate(self.date)
+            self.laps.append(parsedLap)
+
+
+class Lap():
+    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0, startPoint = 0, endPoint = 0):
+        self.start        = start
+        self.end          = end
+        self.elapsed      = elapsed
+        self.distance     = distance
+        self.calories     = calories
+        
+        self.startPoint   = Decimal(startPoint)
+        self.endPoint     = Decimal(endPoint)
+        
+    def __getitem__(self, attr):
+        return getattr(self, attr)
+
+    def fromHex(self, hex):
+        if len(hex) == 44:
+            self.__until   = Utilities.hex2dec(hex[:8])
+            self.__elapsed = Utilities.hex2dec(hex[8:16])
+            self.distance = Utilities.hex2dec(hex[16:24])
+            self.calories = Utilities.hex2dec(hex[24:28])
+ 
+            return self
+        else:
+            raise GH600ParseException
+        
+    def calculateDate(self, date):
+        self.end = date + datetime.timedelta(milliseconds = (self.__until * 100))
+        self.start = self.end - datetime.timedelta(milliseconds = (self.__elapsed * 100))
+        self.elapsed = self.end - self.start
     
 
 class Trackpoint(Utilities):    
@@ -185,7 +255,7 @@ class Trackpoint(Utilities):
             
             return self
         else:
-            raise Gh615ParseException
+            raise GH600ParseException
     
     def calculateDate(self, date):
         self.date = date + datetime.timedelta(milliseconds = (self.interval * 100)) 
@@ -277,7 +347,7 @@ class Waypoint():
             
             return self
         else:
-            raise Gh615ParseException
+            raise GH600ParseException
     
 
 class ExportFormat():    
@@ -333,19 +403,19 @@ class ExportFormat():
         path = os.path.join(path, "%s.%s" % (tracks[0].date.strftime("%Y-%m-%d_%H-%M-%S"), self.extension))
         #first arg is for compatibility reasons
         #content = self.template.render(tracks = [track.toDict() for track in tracks], track = tracks[0].toDict())
-        content = self.template.render(tracks = [tracks], track = tracks[0])
+        content = self.template.render(tracks = tracks, track = tracks[0])
 
         with open(path, 'wt') as f:
             f.write(content)
 
 
-class Gh615Exception():
+class GH600Exception():
     pass
 
-class Gh615SerialException(Gh615Exception):
+class GH600SerialException(GH600Exception):
     pass
 
-class Gh615ParseException(Gh615Exception):
+class GH600ParseException(GH600Exception):
     pass
 
 
@@ -354,7 +424,7 @@ def serial_required(function):
         try:
             x._connectSerial()
             return function(x, *args, **kw)
-        except Gh615SerialException, e:
+        except GH600SerialException, e:
             raise
         except:
             raise
@@ -388,7 +458,7 @@ class SerialInterface():
             self.logger.debug("serial connection on " + self.serial.portstr)
         except serial.SerialException:
             self.logger.critical("error establishing serial connection")
-            raise Gh615SerialException
+            raise GH600SerialException
     
     def _disconnectSerial(self):
         """disconnect the serial connection"""
@@ -409,7 +479,7 @@ class SerialInterface():
             time.sleep(2)
             self.logger.debug("waiting at serialport: " + str(self.serial.inWaiting()))
         #except:
-        #    raise Gh615SerialException
+        #    raise GH600SerialException
         
     def _querySerial(self, command, *args, **kwargs):
         self._writeSerial(command, *args, **kwargs)
@@ -422,7 +492,7 @@ class SerialInterface():
             self._disconnectSerial()
             print "connection established successfully"
             return True
-        except Gh615SerialException:
+        except GH600SerialException:
             self.logger.info("error establishing serial port connection, please check your config.ini file")
             return False
         
@@ -445,8 +515,8 @@ class SerialInterface():
             return []
 
 
-class Gh615(SerialInterface):
-    """api for Globalsat GH615"""
+class GH600(SerialInterface):
+    """api for Globalsat GH600"""
     version = 0.1
             
     def __init__(self):
@@ -455,13 +525,12 @@ class Gh615(SerialInterface):
         self.config.read(Utilities.getAppPrefix('config.ini'))                
                 
         #logging http://www.tiawichiresearch.com/?p=31 / http://www.red-dove.com/python_logging.html
-        
-        handler = logging.FileHandler(Utilities.getAppPrefix('gh615.log'))        
+        handler = logging.FileHandler(Utilities.getAppPrefix('GH600.log'))        
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(lineno)d %(funcName)s %(message)s')
         handler.setFormatter(formatter)
         handler.setLevel(logging.DEBUG)
         
-        self.logger = logging.getLogger('gh615')
+        self.logger = logging.getLogger('GH600')
         self.logger.addHandler(handler)
         self.logger.setLevel(logging.DEBUG)
                     
@@ -473,7 +542,33 @@ class Gh615(SerialInterface):
             outputHandler = logging.StreamHandler()
             outputHandler.setFormatter(logging.Formatter('%(levelname)s %(funcName)s(%(lineno)d): %(message)s'))
             self.logger.addHandler(outputHandler)
-                                                                        
+        
+        product = self.getProductVersion()
+        if product == "GH-615":
+            self.__class__ = GH615
+        elif product == "GH-625":
+            self.__class__ = GH625
+    
+    '''
+    def metamorph(self):
+        product = self.getProductVersion()
+        if product == "GH615":
+            self.__class__ = GH615
+        elif product == "GH625":
+            self.__class__ = GH625
+    '''
+    
+    @serial_required
+    def getProductVersion(self):
+        response = self._querySerial('whoAmI')
+        if response:
+            watch = Utilities.hex2chr(response[6:-4])
+            product, version = watch[:-1], watch[-1:]
+        else: #no response received, assuming command was not understood => old firmware
+            product = "GH615"
+        self.logger.info('i am a Globalsat %s' % product)
+        return product
+                                           
     def getExportFormats(self):
         formats = []
         
@@ -486,15 +581,7 @@ class Gh615(SerialInterface):
         
     @serial_required
     def getTracklist(self):
-        tracklist = self._querySerial('getTracklist')
-
-        if len(tracklist) > 8:
-            tracks = Utilities.chop(tracklist[6:-2],48)#trim header, wtf?
-            self.logger.info('%i tracks found' % len(tracks))    
-            return [Track().fromHex(track) for track in tracks]    
-        else:
-            self.logger.info('no tracks found') 
-            pass
+        raise NotImplemented
     
     def getAllTracks(self):
         allTracks = self.getTracklist()
@@ -503,49 +590,7 @@ class Gh615(SerialInterface):
     
     @serial_required
     def getTracks(self, trackIds):
-        trackIds = [Utilities.dec2hex(id, 4) for id in trackIds ]
-        payload = Utilities.dec2hex((len(trackIds) * 512) + 896, 4)
-        numberOfTracks = Utilities.dec2hex(len(trackIds), 4) 
-        checksum = Utilities.checkersum("%s%s%s" % (payload, numberOfTracks, ''.join(trackIds)))
-          
-        #self._connectSerial()
-        self._writeSerial('getTracks', **{'payload':payload, 'numberOfTracks':numberOfTracks, 'trackIds': ''.join(trackIds), 'checksum':checksum})
-                    
-        tracks = []
-        last = -1
-        
-        while True:
-            data = Utilities.chr2hex(self.serial.read(2070))
-            time.sleep(2)
-            
-            if data != '8A000000':
-                if (Utilities.hex2dec(data[50:54]) == last + 1):
-                    self.logger.debug('getting trackpoints %d-%d' % (Utilities.hex2dec(data[50:54]), Utilities.hex2dec(data[54:58])))
-                    #check if first segment of track
-                    if last == -1:
-                        self.logger.debug('initalizing new track')
-                        track = Track().fromHex(data[6:50])
-                    #parse trackpoints
-                    track.addTrackpointsFromHex(data[58:-2])
-                    #remeber last trackpoint
-                    last = Utilities.hex2dec(data[54:58])
-                    #check if last segment of track
-                    if len(data) < 4140:
-                        #init new track
-                        tracks.append(track)
-                        last = -1
-                    #request next segment
-                    self._writeSerial('requestNextTrackSegment')
-                else:
-                    #re-request last segment again
-                    self.logger.debug('last segment Errornous, re-requesting')
-                    self.serial.flushInput()
-                    self._writeSerial('requestErrornousTrackSegment')
-            else:
-                break        
-        
-        self.logger.info('number of tracks %d' % len(tracks))
-        return tracks
+        raise NotImplemented
     
     def importTracks(self, files, **kwargs):        
         if "path" in kwargs:
@@ -559,7 +604,7 @@ class Gh615(SerialInterface):
                 data = f.read()
                 tracks.extend(self.__parseGpxTrack(data))
         
-        self.logger.info('imported tracks ' + str(len(tracks)))
+        self.logger.info('imported tracks %i' % len(tracks))
         return tracks
     
     def __parseGpxTrack(self, track):
@@ -709,74 +754,70 @@ class Gh615(SerialInterface):
             }
             return unit
         else:
-            raise Gh615ParseException
-    
+            raise GH600ParseException
+            
+
+class GH615(GH600):
     @serial_required
-    def getProductVersion(self):
-        response = self._querySerial('whoAmI')
-        watch = Utilities.hex2chr(response[6:-4])
-        product, version = watch[:-1], watch[-1:]
-        return product
+    def getTracklist(self):
+        tracklist = self._querySerial('getTracklist')
 
-class TrackWithLaps(Track):
-    def __init__(self, date = '', duration = 0, distance = 0, calories = 0, topspeed = 0, trackpointCount = 0, lapCount = 0):
-        self.lapsCount = lapCount
-        self.laps = []
-        super(TrackWithLaps, self).__init__(date, duration,distance, calories, topspeed, trackpointCount)
-    
-    def fromHex(self, hex):
-        if len(hex) == 58 or len(hex) == 62:            
-            self.date            = datetime.datetime(2000+Utilities.hex2dec(hex[0:2]), Utilities.hex2dec(hex[2:4]), Utilities.hex2dec(hex[4:6]), Utilities.hex2dec(hex[6:8]), Utilities.hex2dec(hex[8:10]), Utilities.hex2dec(hex[10:12]))
-            self.lapCount        = Utilities.hex2dec(hex[12:14])
-            self.duration        = Utilities.hex2dec(hex[14:22])
-            self.distance        = Utilities.hex2dec(hex[22:30])
-            self.calories        = Utilities.hex2dec(hex[30:34])
-            self.topspeed        = Utilities.hex2dec(hex[34:38])
-            #self.unknown         = Utilities.hex2dec(hex[38:42])
-            self.trackpointCount = Utilities.hex2dec(hex[42:50])
-            #self.unknown2        = Utilities.hex2dec(hex[50:54])
-            #self.unknown3        = Utilities.hex2dec(hex[54:58])
-                
-            if len(hex) == 62:
-                self.id = Utilities.hex2dec(hex[58:62])
-            return self
+        if len(tracklist) > 8:
+            tracks = Utilities.chop(tracklist[6:-2],48)#trim header, wtf?
+            self.logger.info('%i tracks found' % len(tracks))    
+            return [Track().fromHex(track) for track in tracks]    
         else:
-            raise Gh615ParseException
-        
-    def addLapsFromHex(self, hex):
-        laps = Utilities.chop(hex,44)
-        for lap in laps: 
-            parsedLap = Lap().fromHex(lap)
-            parsedLap.calculateDate(self.date)
-            self.laps.append(parsedLap)
+            self.logger.info('no tracks found') 
+            pass
 
-
-class Lap():
-    def __init__(self, start = datetime.datetime.now(), stop = datetime.datetime.now(), duration = datetime.timedelta(), distance = 0, calories = 0):
-        self.start    = start
-        self.start    = stop
-        self.duration = duration
-        self.distance = distance
-        self.calories = calories
-
-    def fromHex(self, hex):
-        if len(hex) == 44:
-            self.__until    = Utilities.hex2dec(hex[:8])
-            self.__duration = Utilities.hex2dec(hex[8:16])
-            self.distance = Utilities.hex2dec(hex[16:24])
-            self.calories = Utilities.hex2dec(hex[24:28])
- 
-            return self
-        else:
-            raise Gh615ParseException
+    @serial_required
+    def getTracks(self, trackIds):
+        trackIds = [Utilities.dec2hex(id, 4) for id in trackIds ]
+        payload = Utilities.dec2hex((len(trackIds) * 512) + 896, 4)
+        numberOfTracks = Utilities.dec2hex(len(trackIds), 4) 
+        checksum = Utilities.checkersum("%s%s%s" % (payload, numberOfTracks, ''.join(trackIds)))
+          
+        #self._connectSerial()
+        self._writeSerial('getTracks', **{'payload':payload, 'numberOfTracks':numberOfTracks, 'trackIds': ''.join(trackIds), 'checksum':checksum})
+                    
+        tracks = []
+        last = -1
         
-    def calculateDate(self, date):
-        self.stop = date + datetime.timedelta(milliseconds = (self.__until * 100))
-        self.start = self.stop - datetime.timedelta(milliseconds = (self.__duration * 100))
-        self.duration = self.stop - self.start
+        while True:
+            data = Utilities.chr2hex(self.serial.read(2070))
+            time.sleep(2)
+            
+            if data != '8A000000':
+                if (Utilities.hex2dec(data[50:54]) == last + 1):
+                    self.logger.debug('getting trackpoints %d-%d' % (Utilities.hex2dec(data[50:54]), Utilities.hex2dec(data[54:58])))
+                    #check if first segment of track
+                    if last == -1:
+                        self.logger.debug('initalizing new track')
+                        track = Track().fromHex(data[6:50])
+                    #parse trackpoints
+                    track.addTrackpointsFromHex(data[58:-2])
+                    #remeber last trackpoint
+                    last = Utilities.hex2dec(data[54:58])
+                    #check if last segment of track
+                    if len(data) < 4140:
+                        #init new track
+                        tracks.append(track)
+                        last = -1
+                    #request next segment
+                    self._writeSerial('requestNextTrackSegment')
+                else:
+                    #re-request last segment again
+                    self.logger.debug('last segment Errornous, re-requesting')
+                    self.serial.flushInput()
+                    self._writeSerial('requestErrornousTrackSegment')
+            else:
+                break        
         
+        self.logger.info('number of tracks %d' % len(tracks))
+        return tracks
+
     
-class Gh625(Gh615):
+class GH625(GH600):
     @serial_required
     def getTracklist(self):
         tracklist = self._querySerial('getTracklist')
@@ -796,7 +837,7 @@ class Gh625(Gh615):
         numberOfTracks = Utilities.dec2hex(len(trackIds), 4) 
         checksum = Utilities.checkersum("%s%s%s" % (payload, numberOfTracks, ''.join(trackIds)))
           
-        self._writeSerial('getTracks', **{'payload':payload, 'numberOfTracks':numberOfTracks, 'trackIds': ''.join(trackIds), 'checksum':checksum})
+        self._writeSerial('getTracks', **{'payload':payload, 'numberOfTracks':numberOfTracks, 'trackIds':''.join(trackIds), 'checksum':checksum})
                     
         tracks = []
         last = -1

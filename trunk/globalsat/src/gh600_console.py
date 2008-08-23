@@ -1,21 +1,17 @@
 import glob, os, sys
-
-import sys
 from optparse import OptionParser
-from string import Template
 
-from gh615 import Gh615, Gh625, Utilities, ExportFormat
+from gh600 import GH600, Utilities, ExportFormat
 
-gh615 = Gh625()
+gh = GH600()
 
 def tracklist():
-    tracks = gh615.getTracklist()
+    tracks = gh.getTracklist()
     #display
     if tracks:
-        row = Template('$id | $date | $distance | $calories | $topspeed | $trackpoints')
-        print 'id |         date        | distance | calories | topspeed | trackpoints'
+        print 'id         date        distance calories topspeed trkpnts  laps'
         for track in tracks:
-            print row.substitute(id='%02d' % track.id, date=track.date, distance='%08d' % track.distance, calories='%08d' % track.calories, topspeed='%08d' % track.topspeed, trackpoints='%08d' % track.trackpointCount)
+            print str(track)
     else:
         print 'no tracks found'
     pass
@@ -47,10 +43,12 @@ def choose():
         print "Download track(s)"
         trackId = raw_input("enter trackID(s) [space delimited] ").strip()
         trackIds = trackId.split(' ');
-        tracks = gh615.getTracks(trackIds)
+        tracks = gh.getTracks(trackIds)
+
+        print tracks
 
         print 'available exportFormats:'
-        for format in gh615.getExportFormats():
+        for format in gh.getExportFormats():
             print "[%s] = %s" % (format.filename, format.nicename)
         
         format = raw_input("Choose output format: ").strip()
@@ -71,8 +69,8 @@ def choose():
         choose()
         
     elif command == "c":
-        tracks = gh615.getAllTracks()
-        results = gh615.exportTracks(tracks,'gpx')
+        tracks = gh.getAllTracks()
+        results = gh.exportTracks(tracks,'gpx')
         print 'exported tracks', results
         choose()
         
@@ -91,57 +89,57 @@ def choose():
         for fileId in fileIds:
             filesToBeImported.append(files[int(fileId)])
                     
-        tracks = gh615.importTracks(filesToBeImported)        
-        results = gh615.setTracks(tracks)
+        tracks = gh.importTracks(filesToBeImported)        
+        results = gh.setTracks(tracks)
         print 'successfully uploaded tracks ', str(results)
         choose()
         
     elif command == "e":
         print "Download Waypoints"
-        waypoints = gh615.getWaypoints()    
-        results = gh615.exportWaypoints(waypoints)
+        waypoints = gh.getWaypoints()    
+        results = gh.exportWaypoints(waypoints)
         print 'exported Waypoints to', results
         choose()
         
     elif command == "f":
         print "Upload Waypoints"
-        waypoints = gh615.importWaypoints()        
-        results = gh615.setWaypoints(waypoints)
+        waypoints = gh.importWaypoints()        
+        results = gh.setWaypoints(waypoints)
         print 'Imported Waypoints', results
         choose()
         
     elif command == "gg":
         print "Format all Tracks"
         warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
-        results = gh615.formatTracks()
+        results = gh.formatTracks()
         print 'Formatted all Tracks:', results
         choose()
         
     elif command == "h":
         print 'Testing serial port connectivity'
         print 'Autodetecting serial port'
-        ports = gh615.getSerialPort()
+        ports = gh.getSerialPort()
         if ports:
             print 'the most likely port your unit is connected to is ', ports[0]
             prompt = raw_input("do you want to use "+ports[0]+" for this session instead of the port in the config.ini? [y,n]: ").strip()    
             if prompt == 'y':
-                gh615.config.set('serial','comport',ports[0])
+                gh.config.set('serial','comport',ports[0])
                 
                 prompt = raw_input("do you want to use "+ports[0]+" as your permanent port? [y,n]: ").strip()
                 if prompt == 'y':
-                    f = open(gh615.getAppPrefix('config.ini'),"w")
-                    gh615.config.write(f)
+                    f = open(gh.getAppPrefix('config.ini'),"w")
+                    gh.config.write(f)
                     f.close()
         else:
             print 'no suitable ports found'
         choose()
     
     elif command == "i":
-        print gh615.getUnitInformation()
+        print gh.getUnitInformation()
         choose()
     
     elif command == "x":
-        print gh615.getVersion()
+        print gh.getVersion()
     
     elif command == "q":
         sys.exit()
@@ -178,7 +176,7 @@ def main():
         )
         
         parser.add_option("-t", "--track", help="a track id",  action="append", dest="tracks", type="int")
-        parser.add_option("-f", "--format", help="the format to export to (default: %default)", dest="format", choices=[format['filename'] for format in gh615.getExportFormats()])
+        parser.add_option("-f", "--format", help="the format to export to (default: %default)", dest="format", choices=[format['filename'] for format in gh.getExportFormats()])
         parser.add_option("-m", "--merge", help="merge into single file?", dest="merge", action="store_true")
         parser.add_option("-c", "--com", dest="com",  help="the comport to use")
         
@@ -192,7 +190,7 @@ def main():
         
         #set serial port
         if options.com:
-            gh615.config.set('serial','comport',options.com)
+            gh.config.set('serial','comport',options.com)
         
         if args[0] == "a":
             tracklist()
@@ -201,34 +199,34 @@ def main():
             if not options.tracks:
                 parser.error("use option '--track' to select track")
                 
-            tracks = gh615.getTracks(options.tracks)
-            gh615.exportTracks(tracks, options.format, options.merge, path=options.output)
+            tracks = gh.getTracks(options.tracks)
+            gh.exportTracks(tracks, options.format, options.merge, path=options.output)
             
         if args[0] == "c":        
-            tracks = gh615.getAllTracks()
-            results = gh615.exportTracks(tracks, options.format, path=options.output)
+            tracks = gh.getAllTracks()
+            results = gh.exportTracks(tracks, options.format, path=options.output)
             
         if args[0] == "d":
             if not options.input:
                 parser.error("use option '--input' to select files")
-            tracks = gh615.importTracks(options.input)
-            results = gh615.setTracks(tracks)
+            tracks = gh.importTracks(options.input)
+            results = gh.setTracks(tracks)
         
         if args[0] == "e":
-            waypoints = gh615.getWaypoints()    
-            results = gh615.exportWaypoints(waypoints, path=options.output)
+            waypoints = gh.getWaypoints()    
+            results = gh.exportWaypoints(waypoints, path=options.output)
             
         if args[0] == "f":
-            waypoints = gh615.importWaypoints(path=options.input[0])
-            results = gh615.setWaypoints(waypoints)
+            waypoints = gh.importWaypoints(path=options.input[0])
+            results = gh.setWaypoints(waypoints)
             print 'Imported Waypoints', results
             
         if args[0] == "gg":
             warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
-            results = gh615.formatTracks()
+            results = gh.formatTracks()
                     
         if args[0] == "i":
-            print gh615.getUnitInformation()
+            print gh.getUnitInformation()
             
         else:
             print "no valid argument, see README"
