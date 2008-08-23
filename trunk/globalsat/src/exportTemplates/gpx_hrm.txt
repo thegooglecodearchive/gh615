@@ -28,4 +28,26 @@
 </trk>
 <? end ?>
 
+<? if track['laps']: ?>
+	<gpxdata:run>
+		<gpxdata:sport></gpxdata:sport>
+		<gpxdata:programType></gpxdata:programType>
+		<gpxdata:laps>
+		<? for i, lap in enumerate(track['laps']): ?>
+			<gpxdata:lap>
+				<gpxdata:index><?= i ?><gpxdata:index>
+				<gpxdata:startPoint></gpxdata:startPoint>
+				<gpxdata:endPoint></gpxdata:endPoint>
+				<gpxdata:startTime><?= lap['start'].strftime("%Y-%m-%dT%H:%M:%SZ") ?></gpxdata:startTime>
+				<gpxdata:elapsedTime><?= lap['elapsed'].seconds ?></gpxdata:elapsedTime>
+				<gpxdata:calories><?= lap['calories'] ?></gpxdata:calories>
+				<gpxdata:distance><?= lap['distance'] ?></gpxdata:distance>
+				<gpxdata:trigger></gpxdata:trigger>
+				<gpxdata:trackReference></gpxdata:trackReference>
+			</gpxdata:lap>
+		<? end ?>
+		</gpxdata:laps>
+	</gpxdata:run>
+<? end ?>
+
 </gpx>
