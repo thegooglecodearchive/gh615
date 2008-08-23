@@ -1,6 +1,7 @@
 from __future__ import with_statement
-import serial, re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, logging.handlers
+import re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, logging.handlers
 
+import serial
 from decimal import Decimal
 from gpxParser import GPXParser
 from stpy import Template, TemplateHTML
@@ -188,15 +189,18 @@ class TrackWithLaps(Track):
 
 
 class Lap():
-    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0, startPoint = 0, endPoint = 0):
+    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0,
+                 startLatitude = 0, startLongitude = 0, endLatitude = 0, endLongitude = 0):
         self.start        = start
         self.end          = end
         self.elapsed      = elapsed
         self.distance     = distance
         self.calories     = calories
         
-        self.startPoint   = Decimal(startPoint)
-        self.endPoint     = Decimal(endPoint)
+        self.startLatitude   = Decimal(startLatitude)
+        self.startLongitude  = Decimal(startLongitude)
+        self.endLatitude     = Decimal(endLatitude)
+        self.endLongitude    = Decimal(endLongitude)
         
     def __getitem__(self, attr):
         return getattr(self, attr)
@@ -216,9 +220,39 @@ class Lap():
         self.end = date + datetime.timedelta(milliseconds = (self.__until * 100))
         self.start = self.end - datetime.timedelta(milliseconds = (self.__elapsed * 100))
         self.elapsed = self.end - self.start
+        
+    def calculateCoordinates(self, trackpoints):
+        relative_to_start = relative_to_end = {}
+        
+        for trackpoint in trackpoints:
+            relative_to_start[abs(self.start - trackpoint.date)] = trackpoint
+            relative_to_end[abs(self.end - trackpoint.date)] = trackpoint
+            
+        nearest_start_point = relative_to_start[min(relative_to_start)]
+        nearest_end_point = relative_to_end[min(relative_to_end)]
     
+        self.startLatitude = nearest_start_point.latitude
+        self.startLongitude = nearest_start_point.longitude
+        self.endLatitude = nearest_end_point.latitude
+        self.endLongitude = nearest_end_point.longitude
+        
+class Point():
+    def __init__(self, latitude = 0, longitude = 0):
+        self.latitude  = Decimal(latitude)
+        self.longitude = Decimal(longitude)
+        
+    def __hex__(self):
+        return '%s%s' % (Utilities.coord2hex(self.latitude), Utilities.coord2hex(self.longitude))
+    
+    def fromHex(self, hex):
+        if len(hex) == 16:
+            self.latitude = Utilities.hex2coord(hex[:8])
+            self.longitude = Utilities.hex2coord(hex[8:])
+            return self
+        else:
+            raise GH600ParseException
 
-class Trackpoint(Utilities):    
+class Trackpoint():    
     def __init__(self, latitude = 0, longitude = 0, altitude = 0, speed = 0, heartrate = 0, interval = 1, date = datetime.datetime.now()):
         self.latitude    = Decimal(latitude)
         self.longitude   = Decimal(longitude)
@@ -877,6 +911,11 @@ class GH625(GH600):
                     self.serial.flushInput()
                     self._writeSerial('requestErrornousTrackSegment')
             else:
+                #we are done, do maintenance work here
+                for track in tracks:
+                    for lap in track.laps:
+                        lap.calculateCoordinates(track.trackpoints)
+                
                 break        
         
         self.logger.info('number of tracks %d' % len(tracks))
