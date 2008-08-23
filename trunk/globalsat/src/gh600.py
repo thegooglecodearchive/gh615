@@ -79,8 +79,215 @@ class Utilities():
         return appPrefix
 
 
+class Coordinate(Decimal):
+    '''
+    def __init__(self, value=0):
+        Decimal.__init__(self, value)
+    ''' 
+     
+    def __hex__(self):
+        return Utilities.coord2hex(Decimal(self))
+    
+    def fromHex(self, hex):
+        if len(hex) == 8:
+            #TODO: whack, but works
+            self = Coordinate(Utilities.hex2coord(hex))
+            return self
+        else:
+            raise GH600ParseException('Coordinate', len(hex), 8)
+  
+  
+class Point(object):
+    def __init__(self, latitude = 0, longitude = 0):
+        self.latitude  = Coordinate(latitude)
+        self.longitude = Coordinate(longitude)
+        
+    def __getitem__(self, attr):
+        return getattr(self, attr)
+        
+    def __hex__(self):
+        return '%s%s' % (hex(self.latitude), hex(self.longitude))
+    
+    def fromHex(self, hex):
+        if len(hex) == 16:
+            self.latitude = Coordinate().fromHex(hex[:8])
+            self.longitude = Coordinate().fromHex(hex[8:])
+            return self
+        else:
+            raise GH600ParseException('Point', len(hex), 16)
+
+
+class Trackpoint(Point):    
+    def __init__(self, latitude = 0, longitude = 0, altitude = 0, speed = 0, heartrate = 0, interval = 1, date = datetime.datetime.now()):
+        #self.latitude    = Decimal(latitude)
+        #self.longitude   = Decimal(longitude)
+        self.altitude    = altitude
+        self.speed       = speed
+        self.heartrate   = heartrate
+        self.interval    = interval
+        self.date        = date
+        super(Trackpoint, self).__init__(latitude, longitude)
+        
+    def __str__(self):
+        return "(%f, %f, %i, %i, %i, %i)" % (self.latitude, self.longitude, self.altitude, self.speed, self.heartrate, self.interval)
+    
+    def __hex__(self):        
+        return "%(latitude)s%(longitude)s%(altitude)s%(speed)s%(heartrate)s%(interval)s" % {
+            'latitude':   hex(self.latitude),
+            'longitude':  hex(self.longitude),
+            'altitude':   Utilities.dec2hex(self.altitude,4),
+            'speed':      Utilities.dec2hex(self.speed,4),
+            'heartrate':  Utilities.dec2hex(self.heartrate,2),
+            'interval':   Utilities.dec2hex(self.interval,4)
+        }
+    
+    def __getitem__(self, attr):
+        return getattr(self, attr)
+    
+    def fromHex(self, hex):
+        if len(hex) == 30:
+            self.latitude  = Coordinate().fromHex(hex[0:8])
+            self.longitude = Coordinate().fromHex(hex[8:16])
+            self.altitude  = Utilities.hex2dec(hex[16:20])
+            self.speed     = Utilities.hex2dec(hex[20:24])/100
+            self.heartrate = Utilities.hex2dec(hex[24:26])
+            self.interval  = Utilities.hex2dec(hex[26:30])
+                        
+            return self
+        else:
+            raise GH600ParseException('Trackpoint', len(hex), 30)
+    
+    def calculateDate(self, date):
+        self.date = date + datetime.timedelta(milliseconds = (self.interval * 100)) 
+
+
+class Waypoint(Point):
+    TYPES = {
+        0:  'DOT',
+        1:  'HOUSE',
+        2:  'TRIANGLE',
+        3:  'TUNNEL',
+        4:  'CROSS',
+        5:  'FISH',
+        6:  'LIGHT',
+        7:  'CAR',
+        8:  'COMM',
+        9:  'REDCROSS',
+        10: 'TREE',
+        11: 'BUS',
+        12: 'COPCAR',
+        13: 'TREES',
+        14: 'RESTAURANT',
+        15: 'SEVEN',
+        16: 'PARKING',
+        17: 'REPAIRS',
+        18: 'MAIL',
+        19: 'DOLLAR',
+        20: 'GOVOFFICE',
+        21: 'CHURCH',
+        22: 'GROCERY',
+        23: 'HEART',
+        24: 'BOOK',
+        25: 'GAS',
+        26: 'GRILL',
+        27: 'LOOKOUT',
+        28: 'FLAG',
+        29: 'PLANE',
+        30: 'BIRD',
+        31: 'DAWN',
+        32: 'RESTROOM',
+        33: 'WTF',
+        34: 'MANTARAY',
+        35: 'INFORMATION',
+        36: 'BLANK'
+    }
+    
+    def __init__(self, latitude = 0, longitude = 0, altitude = 0, title = '', type = 0):
+        #self.latitude = Coordinate(latitude)
+        #self.longitude = Coordinate(longitude)
+        self.altitude = altitude
+        self.title = title
+        self.type = type
+        super(Waypoint, self).__init__(latitude, longitude) 
+                
+    def __str__(self):
+        return "%s (%f,%f)" % (self.title, self.latitude, self.longitude)
+        
+    def __hex__(self):
+        return "%(title)s00%(type)s%(altitude)s%(latitude)s%(longitude)s" % {
+            'latitude'  : hex(self.latitude),
+            'longitude' : hex(self.longitude),
+            'altitude'  : Utilities.dec2hex(self.altitude,4),
+            'type'      : Utilities.dec2hex(self.type,2),
+            'title'     : Utilities.chr2hex(self.title.ljust(6)[:6])
+        }
+        
+    def fromHex(self, hex):
+        if len(hex) == 36:            
+            def safeConvert(c):
+                #if hex == 00 chr() converts it to space, not \x00
+                if c == '00':
+                    return ' '
+                else:
+                    return Utilities.hex2chr(c)
+                
+            self.latitude = Coordinate().fromHex(hex[20:28])
+            self.longitude = Coordinate().fromHex(hex[28:36])
+            self.altitude = Utilities.hex2dec(hex[16:20])
+            self.title = safeConvert(hex[0:2])+safeConvert(hex[2:4])+safeConvert(hex[4:6])+safeConvert(hex[6:8])+safeConvert(hex[8:10])+safeConvert(hex[10:12])
+            self.type = Utilities.hex2dec(hex[12:16])
+            
+            return self
+        else:
+            raise GH600ParseException('Waypoint', len(hex), 36)
+
+class Lap(object):
+    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0,
+                 startPoint = Point(0,0), endPoint = Point(0,0)):
+        self.start        = start
+        self.end          = end
+        self.elapsed      = elapsed
+        self.distance     = distance
+        self.calories     = calories
+        
+        self.startPoint   = startPoint
+        self.endPoint     = endPoint
+        
+    def __getitem__(self, attr):
+        return getattr(self, attr)
+
+    def fromHex(self, hex):
+        if len(hex) == 44:
+            self.__until   = Utilities.hex2dec(hex[:8])
+            self.__elapsed = Utilities.hex2dec(hex[8:16])
+            self.distance = Utilities.hex2dec(hex[16:24])
+            self.calories = Utilities.hex2dec(hex[24:28])
+ 
+            return self
+        else:
+            raise GH600ParseException('Lap', len(hex), 44)
+        
+    def calculateDate(self, date):
+        self.end = date + datetime.timedelta(milliseconds = (self.__until * 100))
+        self.start = self.end - datetime.timedelta(milliseconds = (self.__elapsed * 100))
+        self.elapsed = self.end - self.start
+        
+    def calculateCoordinates(self, trackpoints):
+        relative_to_start = relative_to_end = {}
+        
+        for trackpoint in trackpoints:
+            relative_to_start[abs(self.start - trackpoint.date)] = trackpoint
+            relative_to_end[abs(self.end - trackpoint.date)] = trackpoint
+            
+        nearest_start_point = relative_to_start[min(relative_to_start)]
+        nearest_end_point = relative_to_end[min(relative_to_end)]
+    
+        self.startPoint = Point(nearest_start_point.latitude, nearest_start_point.longitude)
+        self.endPoint = Point(nearest_end_point.latitude, nearest_end_point.longitude)
+        
+
 class Track(object):    
-    def __init__(self, date = '', duration = 0, distance = 0, calories = 0, topspeed = 0, trackpointCount = 0):
+    def __init__(self, date = datetime.datetime.now(), duration = 0, distance = 0, calories = 0, topspeed = 0, trackpointCount = 0):
         self.date            = date
         self.duration        = duration
         self.distance        = distance
@@ -93,7 +300,6 @@ class Track(object):
         return getattr(self, attr)
     
     def __str__(self):
-        #return row.substitute(id='%02d' % track.id, date=track.date, distance='%08d' % track.distance, calories='%08d' % track.calories, topspeed='%08d' % track.topspeed, trackpoints=' ' % track.trackpointCount)
         return "%02i %s %08i %08i %08i %08i %04i" % (self.id, self.date, self.distance, self.calories, self.topspeed, self.trackpointCount, 0)
 
     def __hex__(self):
@@ -134,7 +340,7 @@ class Track(object):
                 self.id = Utilities.hex2dec(hex[44:48])
             return self
         else:
-            raise GH600ParseException
+            raise GH600ParseException('Track', len(hex), 44)
         
     def addTrackpointsFromHex(self, hex):        
         trackpoints = Utilities.chop(hex,30)
@@ -178,7 +384,7 @@ class TrackWithLaps(Track):
                 self.id = Utilities.hex2dec(hex[58:62])
             return self
         else:
-            raise GH600ParseException
+            raise GH600ParseException('Track', len(hex), 58)
         
     def addLapsFromHex(self, hex):
         laps = Utilities.chop(hex,44)
@@ -188,206 +394,11 @@ class TrackWithLaps(Track):
             self.laps.append(parsedLap)
 
 
-class Lap():
-    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0,
-                 startLatitude = 0, startLongitude = 0, endLatitude = 0, endLongitude = 0):
-        self.start        = start
-        self.end          = end
-        self.elapsed      = elapsed
-        self.distance     = distance
-        self.calories     = calories
-        
-        self.startLatitude   = Decimal(startLatitude)
-        self.startLongitude  = Decimal(startLongitude)
-        self.endLatitude     = Decimal(endLatitude)
-        self.endLongitude    = Decimal(endLongitude)
-        
-    def __getitem__(self, attr):
-        return getattr(self, attr)
-
-    def fromHex(self, hex):
-        if len(hex) == 44:
-            self.__until   = Utilities.hex2dec(hex[:8])
-            self.__elapsed = Utilities.hex2dec(hex[8:16])
-            self.distance = Utilities.hex2dec(hex[16:24])
-            self.calories = Utilities.hex2dec(hex[24:28])
- 
-            return self
-        else:
-            raise GH600ParseException
-        
-    def calculateDate(self, date):
-        self.end = date + datetime.timedelta(milliseconds = (self.__until * 100))
-        self.start = self.end - datetime.timedelta(milliseconds = (self.__elapsed * 100))
-        self.elapsed = self.end - self.start
-        
-    def calculateCoordinates(self, trackpoints):
-        relative_to_start = relative_to_end = {}
-        
-        for trackpoint in trackpoints:
-            relative_to_start[abs(self.start - trackpoint.date)] = trackpoint
-            relative_to_end[abs(self.end - trackpoint.date)] = trackpoint
-            
-        nearest_start_point = relative_to_start[min(relative_to_start)]
-        nearest_end_point = relative_to_end[min(relative_to_end)]
-    
-        self.startLatitude = nearest_start_point.latitude
-        self.startLongitude = nearest_start_point.longitude
-        self.endLatitude = nearest_end_point.latitude
-        self.endLongitude = nearest_end_point.longitude
-        
-class Point():
-    def __init__(self, latitude = 0, longitude = 0):
-        self.latitude  = Decimal(latitude)
-        self.longitude = Decimal(longitude)
-        
-    def __hex__(self):
-        return '%s%s' % (Utilities.coord2hex(self.latitude), Utilities.coord2hex(self.longitude))
-    
-    def fromHex(self, hex):
-        if len(hex) == 16:
-            self.latitude = Utilities.hex2coord(hex[:8])
-            self.longitude = Utilities.hex2coord(hex[8:])
-            return self
-        else:
-            raise GH600ParseException
-
-class Trackpoint():    
-    def __init__(self, latitude = 0, longitude = 0, altitude = 0, speed = 0, heartrate = 0, interval = 1, date = datetime.datetime.now()):
-        self.latitude    = Decimal(latitude)
-        self.longitude   = Decimal(longitude)
-        self.altitude    = altitude
-        self.speed       = speed
-        self.heartrate   = heartrate
-        self.interval    = interval
-        self.date        = date
-        
-    def __str__(self):
-        return "(%f, %f, %i, %i, %i, %i)" % (self.latitude, self.longitude, self.altitude, self.speed, self.heartrate, self.interval)
-    
-    def __hex__(self):        
-        return "%(latitude)s%(longitude)s%(altitude)s%(speed)s%(heartrate)s%(interval)s" % {
-            'latitude':   Utilities.coord2hex(self.latitude),
-            'longitude':  Utilities.coord2hex(self.longitude),
-            'altitude':   Utilities.dec2hex(self.altitude,4),
-            'speed':      Utilities.dec2hex(self.speed,4),
-            'heartrate':  Utilities.dec2hex(self.heartrate,2),
-            'interval':   Utilities.dec2hex(self.interval,4)
-        }
-    
-    def __getitem__(self, attr):
-        return getattr(self, attr)
-    
-    def fromHex(self, hex, timeFromStart = False):
-        if len(hex) == 30:
-            self.latitude  = Utilities.hex2coord(hex[0:8])
-            self.longitude = Utilities.hex2coord(hex[8:16])
-            self.altitude  = Utilities.hex2dec(hex[16:20])
-            self.speed     = Utilities.hex2dec(hex[20:24])/100
-            self.heartrate = Utilities.hex2dec(hex[24:26])
-            self.interval  = Utilities.hex2dec(hex[26:30])
-            
-            return self
-        else:
-            raise GH600ParseException
-    
-    def calculateDate(self, date):
-        self.date = date + datetime.timedelta(milliseconds = (self.interval * 100)) 
-
-
-class Waypoint():
-    TYPES = {
-        0:  'DOT',
-        1:  'HOUSE',
-        2:  'TRIANGLE',
-        3:  'TUNNEL',
-        4:  'CROSS',
-        5:  'FISH',
-        6:  'LIGHT',
-        7:  'CAR',
-        8:  'COMM',
-        9:  'REDCROSS',
-        10: 'TREE',
-        11: 'BUS',
-        12: 'COPCAR',
-        13: 'TREES',
-        14: 'RESTAURANT',
-        15: 'SEVEN',
-        16: 'PARKING',
-        17: 'REPAIRS',
-        18: 'MAIL',
-        19: 'DOLLAR',
-        20: 'GOVOFFICE',
-        21: 'CHURCH',
-        22: 'GROCERY',
-        23: 'HEART',
-        24: 'BOOK',
-        25: 'GAS',
-        26: 'GRILL',
-        27: 'LOOKOUT',
-        28: 'FLAG',
-        29: 'PLANE',
-        30: 'BIRD',
-        31: 'DAWN',
-        32: 'RESTROOM',
-        33: 'WTF',
-        34: 'MANTARAY',
-        35: 'INFORMATION',
-        36: 'BLANK'
-    }
-    
-    def __init__(self, latitude = 0, longitude = 0, altitude = 0, title = '', type = 0):
-        self.latitude = Decimal(latitude)
-        self.longitude = Decimal(longitude)
-        self.altitude = altitude
-        self.title = title
-        self.type = type
-                
-    def __str__(self):
-        return "%s (%f,%f)" % (self.title, self.latitude, self.longitude)
-        
-    def __hex__(self):
-        return "%(title)s00%(type)s%(altitude)s%(latitude)s%(longitude)s" % {
-            'latitude'  : Utilities.coord2hex(self.latitude),
-            'longitude' : Utilities.coord2hex(self.longitude),
-            'altitude'  : Utilities.dec2hex(self.altitude,4),
-            'type'      : Utilities.dec2hex(self.type,2),
-            'title'     : Utilities.chr2hex(self.title.ljust(6)[:6])
-        }
-        
-    def toDict(self):        
-        return {
-            'latitude'  : str(self.latitude),
-            'longitude' : str(self.longitude),
-            'altitude'  : self.altitude,
-            'type'      : self.type,
-            'title'     : self.title
-        }
-
-    def fromHex(self, hex):
-        if len(hex) == 36:            
-            def safeConvert(c):
-                #if hex == 00 chr() converts it to space, not \x00
-                if c == '00':
-                    return ' '
-                else:
-                    return Utilities.hex2chr(c)
-                
-            self.latitude = Utilities.hex2coord(hex[20:28])
-            self.longitude = Utilities.hex2coord(hex[28:36])
-            self.altitude = Utilities.hex2dec(hex[16:20])
-            self.title = safeConvert(hex[0:2])+safeConvert(hex[2:4])+safeConvert(hex[4:6])+safeConvert(hex[6:8])+safeConvert(hex[8:10])+safeConvert(hex[10:12])
-            self.type = Utilities.hex2dec(hex[12:16])
-            
-            return self
-        else:
-            raise GH600ParseException
-    
-
-class ExportFormat():    
+class ExportFormat(object):    
     def __init__(self, format):
         if os.path.exists(Utilities.getAppPrefix('exportTemplates', '%s.txt' % format)):
-            templateImport = open(Utilities.getAppPrefix('exportTemplates', '%s.txt' % format)).read()
+            with open(Utilities.getAppPrefix('exportTemplates', '%s.txt' % format)) as f:
+                templateImport = f.read()
             
             templateConfig = ConfigParser.SafeConfigParser()
             #setting defaults
@@ -398,7 +409,7 @@ class ExportFormat():
             templateConfig.set(format, 'hasMultiple', "false")
             templateConfig.set(format, 'hasPre', "false")
         
-            templateConfig.read(Utilities.getAppPrefix('exportTemplates','formats.ini'))   
+            templateConfig.read(Utilities.getAppPrefix('exportTemplates', 'formats.ini'))   
             
             self.filename = format
             self.nicename = templateConfig.get(format, 'nicename')
@@ -417,12 +428,12 @@ class ExportFormat():
     def exportTrack(self, track):
         self.__export([track])
     
-    def exportTracks(self, tracks, merge = False):
-        if merge:
-            self.__export(tracks)
+    def exportTracks(self, tracks, **kwargs):
+        if 'merge' in kwargs and kwargs['merge']:
+            self.__export(tracks, **kwargs)
         else:
             for track in tracks:
-                self.__export(track)
+                self.exportTrack(track, **kwargs)
     
     def __export(self, tracks, **kwargs):
         if self.hasPre:
@@ -450,8 +461,16 @@ class GH600SerialException(GH600Exception):
     pass
 
 class GH600ParseException(GH600Exception):
-    pass
-
+    def __init__(self, what = None, length = None, expected = None):
+        self.what = what
+        self.length = length
+        self.expected = expected
+        
+    def __str__(self):
+        if self.what:
+            return "Error parsing %s: Got %i, expected %i" % (self.what, self.length, self.expected) 
+        else:
+            super(GH600ParseException, self).__str__()
 
 def serial_required(function):
     def serial_required_wrapper(x, *args, **kw):
@@ -529,7 +548,8 @@ class SerialInterface():
         except GH600SerialException:
             self.logger.info("error establishing serial port connection, please check your config.ini file")
             return False
-        
+    
+    '''
     def _getLikelyPort(self, availableOnly = True):
         """utility function for finding the most likely serialport the gh615 is connected to"""
         
@@ -547,11 +567,11 @@ class SerialInterface():
             return ports
         else:
             return []
+    '''
 
 
 class GH600(SerialInterface):
     """api for Globalsat GH600"""
-    version = 0.1
             
     def __init__(self):
         #config
@@ -567,31 +587,23 @@ class GH600(SerialInterface):
         self.logger = logging.getLogger('GH600')
         self.logger.addHandler(handler)
         self.logger.setLevel(logging.DEBUG)
-                    
-        ch = logging.FileHandler(Utilities.getAppPrefix('status.log'))  
-        #ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
-        
+                            
         if self.config.getboolean("debug", "output"):
             outputHandler = logging.StreamHandler()
             outputHandler.setFormatter(logging.Formatter('%(levelname)s %(funcName)s(%(lineno)d): %(message)s'))
             self.logger.addHandler(outputHandler)
+            
+        if self.__class__ is GH600:
+            #we need to downcast to a specific modell
+            product = self.config.get("general", "product")
+            if not product:
+                product = self.getProductVersion()
+                
+            if product == "GH-615":
+                self.__class__ = GH615
+            elif product == "GH-625":
+                self.__class__ = GH625
         
-        product = self.getProductVersion()
-        if product == "GH-615":
-            self.__class__ = GH615
-        elif product == "GH-625":
-            self.__class__ = GH625
-    
-    '''
-    def metamorph(self):
-        product = self.getProductVersion()
-        if product == "GH615":
-            self.__class__ = GH615
-        elif product == "GH625":
-            self.__class__ = GH625
-    '''
-    
     @serial_required
     def getProductVersion(self):
         response = self._querySerial('whoAmI')
@@ -682,7 +694,7 @@ class GH600(SerialInterface):
     @serial_required
     def getWaypoints(self):
         response = self._querySerial('getWaypoints')            
-        waypoints = Utilities.chop(response[6:-2], 36)#trim junk
+        waypoints = Utilities.chop(response[6:-2], 36) #trim junk
         return [Waypoint().fromHex(waypoint) for waypoint in waypoints] 
 
     def exportWaypoints(self, waypoints, **kwargs):
@@ -788,7 +800,7 @@ class GH600(SerialInterface):
             }
             return unit
         else:
-            raise GH600ParseException
+            raise GH600ParseException('Unit Information', len(hex), 180)
             
 
 class GH615(GH600):
@@ -915,7 +927,7 @@ class GH625(GH600):
                 for track in tracks:
                     for lap in track.laps:
                         lap.calculateCoordinates(track.trackpoints)
-                
+
                 break        
         
         self.logger.info('number of tracks %d' % len(tracks))

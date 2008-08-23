@@ -1,7 +1,7 @@
 import glob, os, sys
 from optparse import OptionParser
 
-from gh600 import GH600, Utilities, ExportFormat
+from gh600 import GH600, ExportFormat, Utilities
 
 gh = GH600()
 
@@ -28,8 +28,8 @@ def choose():
  [f]=upload waypoints\n\
  -----ETC-----------\n\
  [gg]=format tracks\n\
- [h]=usb connection test\n\
- [i]=get device information\n\
+ [hh]=format waypoints\n\
+ [j]=get device information\n\
  -------------------\n\
  [q]=quit"
     command = raw_input("=>").strip()
@@ -44,9 +44,7 @@ def choose():
         trackId = raw_input("enter trackID(s) [space delimited] ").strip()
         trackIds = trackId.split(' ');
         tracks = gh.getTracks(trackIds)
-
-        print tracks
-
+        
         print 'available exportFormats:'
         for format in gh.getExportFormats():
             print "[%s] = %s" % (format.filename, format.nicename)
@@ -54,16 +52,12 @@ def choose():
         format = raw_input("Choose output format: ").strip()
         
         merge = False
-        if ExportFormat(format).hasMultiple:
+        ef = ExportFormat(format)
+        if ef.hasMultiple:
             merge = raw_input("Do you want to merge all tracks into a single file? [y/n]: ").strip()
             merge = True if merge == "y" else False
         
-        if merge:
-            #bla need to write trackmerge feature
-            pass
-        else:
-            for track in tracks:
-                track.export(format)
+        ef.exportTracks(tracks, merge = merge)
         
         print 'exported %d tracks' % len(tracks)
         choose()
@@ -80,7 +74,7 @@ def choose():
         for i,format in enumerate(files):
             (filepath, filename) = os.path.split(format)
             #(shortname, extension) = os.path.splitext(filename)
-            print '['+str(i)+'] = '+ filename
+            print '[%i] = %s' % (i, filename)
         
         fileId = raw_input("enter number(s) [space delimited] ").strip()
         fileIds = fileId.split(' ');
@@ -109,12 +103,12 @@ def choose():
         choose()
         
     elif command == "gg":
-        print "Format all Tracks"
-        warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
+        print "Delete all Tracks"
+        warning = raw_input("warning, DELETING ALL TRACKS").strip()
         results = gh.formatTracks()
-        print 'Formatted all Tracks:', results
+        print 'Deleted all Tracks:', results
         choose()
-        
+    
     elif command == "h":
         print 'Testing serial port connectivity'
         print 'Autodetecting serial port'
@@ -134,12 +128,21 @@ def choose():
             print 'no suitable ports found'
         choose()
     
+    elif command == "hh":
+        print "Delete all Waypoints"
+        warning = raw_input("WARNING DELETING ALL WAYPOINTS").strip()
+        results = gh.formatWaypoints()
+        print 'Formatted all Waypoints:', results
+        choose()
+    
     elif command == "i":
-        print gh.getUnitInformation()
+        unit = gh.getUnitInformation()
+        print "%s waypoints on watch" % unit['waypoint_count']
+        print "%s trackpoints on watch" % unit['trackpoint_count']
         choose()
     
     elif command == "x":
-        print gh.getVersion()
+        print gh._getLikelyPort()
     
     elif command == "q":
         sys.exit()
@@ -157,7 +160,7 @@ def main():
     else:
         usage = 'usage: %prog arg [options]'
         description = 'Command Line Interface for GH-615 Python interface, for list of args see the README'
-        parser = OptionParser(usage, description=description)
+        parser = OptionParser(usage, description = description)
         #parser.add_option("-a", "--tracklist", help="output a list of all tracks")
         #parser.add_option("-b", "--download-track")
         #parser.add_option("-c", "--download-all-tracks")
@@ -169,10 +172,10 @@ def main():
         #parser.add_option("-i", "--unit-information") 
         
         parser.set_defaults(
-            format="gpx",
-            merge=False,
-            input=None,
-            output=None,
+            format = "gpx",
+            merge  = False,
+            input  = None,
+            output = None,
         )
         
         parser.add_option("-t", "--track", help="a track id",  action="append", dest="tracks", type="int")
@@ -190,7 +193,7 @@ def main():
         
         #set serial port
         if options.com:
-            gh.config.set('serial','comport',options.com)
+            gh.config.set('serial', 'comport', options.com)
         
         if args[0] == "a":
             tracklist()
@@ -200,11 +203,14 @@ def main():
                 parser.error("use option '--track' to select track")
                 
             tracks = gh.getTracks(options.tracks)
-            gh.exportTracks(tracks, options.format, options.merge, path=options.output)
+            ef = ExportFormat(options.format)
+            ef.exportTracks(tracks, merge = options.merge, path = options.output)
+            
             
         if args[0] == "c":        
             tracks = gh.getAllTracks()
-            results = gh.exportTracks(tracks, options.format, path=options.output)
+            ef = ExportFormat(options.format)
+            ef.exportTracks(tracks, merge = options.merge, path = options.output)
             
         if args[0] == "d":
             if not options.input:
@@ -222,11 +228,16 @@ def main():
             print 'Imported Waypoints', results
             
         if args[0] == "gg":
-            warning = raw_input("warning, FORMATTING ALL TRACKS").strip()
+            warning = raw_input("warning, DELETING ALL TRACKS").strip()
             results = gh.formatTracks()
+            
+        if args[0] == "hh":
+            warning = raw_input("warning, DELETING ALL WAYPOINTS").strip()
+            results = gh.formatWaypoints()
                     
         if args[0] == "i":
-            print gh.getUnitInformation()
+            return gh.getUnitInformation()
+
             
         else:
             print "no valid argument, see README"
