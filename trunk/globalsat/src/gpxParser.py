@@ -30,10 +30,11 @@ class GPXParser:
     return int(distance * metersPerNauticalMile)
 
   def parseTrack(self, trk): 
-    from gh600 import Track, Trackpoint    
+    from gh600 import Track, TrackWithLaps, Trackpoint, Coordinate
         
     #default track
-    track = Track()
+    track = TrackWithLaps()
+    track.lapCount = 1
 
     for trkseg in trk.getElementsByTagName('trkseg'):
     
@@ -45,8 +46,8 @@ class GPXParser:
           #default trackpoint
           trackpoint = Trackpoint()
           
-          trackpoint.latitude = float(trkpt.getAttribute('lat'))
-          trackpoint.longitude = float(trkpt.getAttribute('lon'))
+          trackpoint.latitude = Coordinate(trkpt.getAttribute('lat'))
+          trackpoint.longitude = Coordinate(trkpt.getAttribute('lon'))
           
           #setting defaults for non required elements
           if trkpt.getElementsByTagName('ele'):

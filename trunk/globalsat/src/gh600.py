@@ -131,7 +131,7 @@ class Trackpoint(Point):
     def __str__(self):
         return "(%f, %f, %i, %i, %i, %i)" % (self.latitude, self.longitude, self.altitude, self.speed, self.heartrate, self.interval)
     
-    def __hex__(self):        
+    def __hex__(self):            
         return "%(latitude)s%(longitude)s%(altitude)s%(speed)s%(heartrate)s%(interval)s" % {
             'latitude':   hex(self.latitude),
             'longitude':  hex(self.longitude),
@@ -309,18 +309,16 @@ class Track(object):
                
         infos = Utilities.dec2hex(self.duration,8) + Utilities.dec2hex(self.distance,8) + \
                 Utilities.dec2hex(self.calories,4) + Utilities.dec2hex(self.topspeed,4) + \
-                Utilities.dec2hex(len(self.trackpoints),8)
-        
-        nrOfTrackpoints = self.trackpointCount
+                Utilities.dec2hex(self.trackpointCount,8)
         
         #package segments of 136 trackpoints
         chunks = []
-        for frome in xrange(0, nrOfTrackpoints, 136):
-            to = (nrOfTrackpoints - 1) if (frome + 135 > nrOfTrackpoints) else (frome + 135)
+        for frome in xrange(0, self.trackpointCount, 136):
+            to = (self.trackpointCount - 1) if (frome + 135 > self.trackpointCount) else (frome + 135)
             
             trackpointsConverted = ''.join([hex(trackpoint) for trackpoint in self.trackpoints[frome:to+1]])
             #first segments uses 90, all following 91
-            isFirst = ('91','90')[frome == 0]
+            isFirst = '90' if frome == 0 else '91'
             payload = Utilities.dec2hex(27 + (15 * ((to-frome) + 1)), 4)                      
             checksum = Utilities.checkersum((GH600.COMMANDS['setTracks'] % {'payload':payload, 'isFirst':isFirst, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':'00'})[2:-2])
                        
@@ -366,6 +364,33 @@ class TrackWithLaps(Track):
     
     def __str__(self):
         return "%02i %s %08i %08i %08i %08i %04i" % (self.id, self.date, self.distance, self.calories, self.topspeed, self.trackpointCount, self.lapCount)
+    
+    def __hex__(self):            
+        date = Utilities.dec2hex(self.date.strftime('%y'),2) + Utilities.dec2hex(self.date.strftime('%m'),2) + \
+               Utilities.dec2hex(self.date.strftime('%d'),2) + Utilities.dec2hex(self.date.strftime('%H'),2) + \
+               Utilities.dec2hex(self.date.strftime('%M'),2) + Utilities.dec2hex(self.date.strftime('%S'),2)
+               
+        infos = Utilities.dec2hex(self.lapCount,2) + Utilities.dec2hex(self.duration,8) + \
+                Utilities.dec2hex(self.distance,8) + Utilities.dec2hex(self.calories,4) + Utilities.dec2hex(self.topspeed,4) + \
+                Utilities.dec2hex(0,8) + Utilities.dec2hex(self.trackpointCount,8)
+                
+        lapsConverted = Utilities.dec2hex(0,44)
+        payload_laps = Utilities.dec2hex(32 + (self.lapCount * 22),4)
+        checksum_laps = Utilities.checkersum((GH625.COMMANDS['setTracksLaps'] % {'payload':payload_laps, 'trackInfo':date+infos, 'laps': lapsConverted, 'nrOfTrackpoints': Utilities.dec2hex(self.trackpointCount,8), 'checksum':'00'})[2:-2])
+        lap_chunk = GH625.COMMANDS['setTracksLaps'] % {'payload':payload_laps, 'trackInfo':date+infos, 'laps': lapsConverted, 'nrOfTrackpoints': Utilities.dec2hex(self.trackpointCount,8), 'checksum':checksum_laps}
+
+        chunks = []
+        chunks.append(lap_chunk)
+        #package segments of 136 trackpoints
+        for frome in xrange(0, self.trackpointCount, 136):
+            to = (self.trackpointCount - 1) if (frome + 135 > self.trackpointCount) else (frome + 135)
+            
+            trackpointsConverted = ''.join([hex(trackpoint) for trackpoint in self.trackpoints[frome:to+1]])
+            payload = Utilities.dec2hex(32 + (15 * ((to-frome) + 1)), 4)                      
+            checksum = Utilities.checkersum((GH625.COMMANDS['setTracks'] % {'payload':payload, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':'00'})[2:-2])
+                       
+            chunks.append(GH625.COMMANDS['setTracks'] % {'payload':payload, 'trackInfo':date+infos, 'from':Utilities.dec2hex(frome,4), 'to':Utilities.dec2hex(to,4), 'trackpoints': trackpointsConverted, 'checksum':checksum})
+        return ''.join(chunks)
     
     def fromHex(self, hex):
         if len(hex) == 58 or len(hex) == 62:            
@@ -425,8 +450,8 @@ class ExportFormat(object):
     def __str__(self):
         return "%s" % self.filename
     
-    def exportTrack(self, track):
-        self.__export([track])
+    def exportTrack(self, track, **kwargs):
+        self.__export([track], **kwargs)
     
     def exportTracks(self, tracks, **kwargs):
         if 'merge' in kwargs and kwargs['merge']:
@@ -486,22 +511,7 @@ def serial_required(function):
     return serial_required_wrapper
 
 
-class SerialInterface():
-    COMMANDS = {
-        'getTracklist'                    : '0200017879',
-        'setTracks'                       : '02%(payload)s%(isFirst)s%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s', 
-        'getTracks'                       : '0200%(payload)s%(numberOfTracks)s%(trackIds)s%(checksum)s', 
-        'requestNextTrackSegment'         : '0200018180', 
-        'requestErrornousTrackSegment'    : '0200018283',
-        'formatTracks'                    : '0200037900641E',
-        'getWaypoints'                    : '0200017776',
-        'setWaypoints'                    : '02%(payload)s76%(numberOfWaypoints)s%(waypoints)s%(checksum)s',
-        'formatWaypoints'                 : '0200037500642',
-        'unitInformation'                 : '0200018584',
-        'whoAmI'                          : '020001BFBE',
-        'unknown'                         : '0200018382'
-    }
-    
+class SerialInterface():    
     def _connectSerial(self):
         """connect via serial interface"""
         try:
@@ -572,6 +582,21 @@ class SerialInterface():
 
 class GH600(SerialInterface):
     """api for Globalsat GH600"""
+    
+    COMMANDS = {
+        'getTracklist'                    : '0200017879',
+        #'setTracks'                       : '02%(payload)s%(isFirst)s%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s', 
+        'getTracks'                       : '0200%(payload)s%(numberOfTracks)s%(trackIds)s%(checksum)s', 
+        'requestNextTrackSegment'         : '0200018180', 
+        'requestErrornousTrackSegment'    : '0200018283',
+        'formatTracks'                    : '0200037900641E',
+        'getWaypoints'                    : '0200017776',
+        'setWaypoints'                    : '02%(payload)s76%(numberOfWaypoints)s%(waypoints)s%(checksum)s',
+        'formatWaypoints'                 : '0200037500642',
+        'unitInformation'                 : '0200018584',
+        'whoAmI'                          : '020001BFBE',
+        'unknown'                         : '0200018382'
+    }
             
     def __init__(self):
         #config
@@ -659,23 +684,7 @@ class GH600(SerialInterface):
     
     @serial_required
     def setTracks(self, tracks):
-        #TODO: There is currently a problem with uploading tracks with less than 10 trackpoints !?                
-        for track in tracks:
-            chunks = Utilities.chop(hex(track), 4142)
-            for i, chunk in enumerate(chunks):
-                response = self._querySerial(chunk)
-
-                if response == '9A000000':
-                    self.logger.info('successfully uploaded track')
-                elif response == '91000000' or response == '90000000':
-                    self.logger.debug("uploaded chunk %i of %i" % (i+1, len(chunks)))
-                elif response == '92000000':
-                    #this probably means segment was not as expected, should resend previous segment?
-                    self.logger.debug('wtf')
-                else:
-                    print 'error uploading track'
-                    raise
-        return len(tracks)
+        raise NotImplemented
 
     @serial_required
     def formatTracks(self):
@@ -702,9 +711,13 @@ class GH600(SerialInterface):
             filepath = os.path.join(kwargs['path'], 'waypoints.txt')
         else:    
             filepath = Utilities.getAppPrefix('waypoints.txt')
-                
+        
+        with open(Utilities.getAppPrefix('waypoint_template.txt')) as f:
+            template = Template(f.read())
+        rendered = template.render(waypoints = waypoints)
+
         with open(filepath,'wt') as f:
-            f.write(str([waypoint.toDict() for waypoint in waypoints]))
+            f.write(rendered)
             
         self.logger.info('Successfully wrote waypoints to %s' % filepath)
         return filepath
@@ -713,14 +726,14 @@ class GH600(SerialInterface):
         if 'path' in kwargs:
             filepath = os.path.join(kwargs['path'], 'waypoints.txt')
         else:    
-            filepath = Utilities.getAppPrefix('waypoint_dummy.txt')
+            filepath = Utilities.getAppPrefix('waypoints.txt')
                 
         with open(filepath) as f:
             importedWaypoints = f.read()
     
         waypoints = []
         for waypoint in eval(importedWaypoints):
-            waypoints.append(Waypoint(waypoint['latitude'], waypoint['longitude'], waypoint['altitude'], waypoint['title'], waypoint['type']))
+            waypoints.append(Waypoint(str(waypoint['latitude']), str(waypoint['longitude']), waypoint['altitude'], waypoint['title'], waypoint['type']))
             
         self.logger.info('Successfully read waypoints %i' % len(waypoints)) 
         return waypoints
@@ -804,6 +817,12 @@ class GH600(SerialInterface):
             
 
 class GH615(GH600):
+    def __init__(self):
+        self.COMMANDS.update({
+             'setTracks': '02%(payload)s%(isFirst)s%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s' 
+        })
+        super(GH615, self).__init__()
+       
     @serial_required
     def getTracklist(self):
         tracklist = self._querySerial('getTracklist')
@@ -861,9 +880,35 @@ class GH615(GH600):
         
         self.logger.info('number of tracks %d' % len(tracks))
         return tracks
+    
+    @serial_required
+    def setTracks(self, tracks):
+        #TODO: There is currently a problem with uploading tracks with less than 10 trackpoints !?                
+        for track in tracks:
+            chunks = Utilities.chop(hex(track), 4142)
+            for i, chunk in enumerate(chunks):
+                response = self._querySerial(chunk)
+
+                if response == '9A000000':
+                    self.logger.info('successfully uploaded track')
+                elif response == '91000000' or response == '90000000':
+                    self.logger.debug("uploaded chunk %i of %i" % (i+1, len(chunks)))
+                elif response == '92000000':
+                    #this probably means segment was not as expected, should resend previous segment?
+                    self.logger.debug('wtf')
+                else:
+                    print response
+                    print 'error uploading track'
+                    raise Exception
+        return len(tracks)
 
     
 class GH625(GH600):
+    GH600.COMMANDS.update({
+       'setTracks':     '02%(payload)s91%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s',
+       'setTracksLaps': '02%(payload)s90%(trackInfo)s%(laps)s%(nrOfTrackpoints)s%(checksum)s'
+    })
+    
     @serial_required
     def getTracklist(self):
         tracklist = self._querySerial('getTracklist')
@@ -929,6 +974,34 @@ class GH625(GH600):
                         lap.calculateCoordinates(track.trackpoints)
 
                 break        
-        
+
         self.logger.info('number of tracks %d' % len(tracks))
         return tracks
+    
+    @serial_required
+    def setTracks(self, tracks):        
+        for track in tracks:
+            lapChunk = hex(track)[:72 + (track.lapCount * 44)]
+            
+            response = self._querySerial(lapChunk)
+            if response == '91000000' or response == '90000000':
+                self.logger.info('uploaded lap information of track successfully')
+            else:
+                sys.exit()
+
+            trackpointChunks = Utilities.chop(hex(track)[len(lapChunk):], 4152)
+            for i, chunk in enumerate(trackpointChunks):
+                response = self._querySerial(chunk)
+
+                if response == '9A000000':
+                    self.logger.info('successfully uploaded track')
+                elif response == '91000000' or response == '90000000':
+                    self.logger.debug("uploaded chunk %i of %i" % (i+1, len(trackpointChunks)))
+                elif response == '92000000':
+                    #this probably means segment was not as expected, should resend previous segment?
+                    self.logger.debug('wtf')
+                else:
+                    print response
+                    print 'error uploading track'
+                    raise Exception
+        return len(tracks)
