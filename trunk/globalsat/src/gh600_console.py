@@ -47,7 +47,7 @@ def choose():
         
         print 'available exportFormats:'
         for format in gh.getExportFormats():
-            print "[%s] = %s" % (format.filename, format.nicename)
+            print "[%s] = %s" % (format.name, format.nicename)
         
         format = raw_input("Choose output format: ").strip()
         
@@ -58,7 +58,6 @@ def choose():
             merge = True if merge == "y" else False
         
         ef.exportTracks(tracks, merge = merge)
-        
         print 'exported %d tracks' % len(tracks)
         choose()
         
@@ -142,7 +141,7 @@ def choose():
         choose()
     
     elif command == "x":
-        print gh._getLikelyPort()
+        print gh._diagnostic()
     
     elif command == "q":
         sys.exit()
@@ -182,6 +181,8 @@ def main():
         parser.add_option("-f", "--format", help="the format to export to (default: %default)", dest="format", choices=[format['filename'] for format in gh.getExportFormats()])
         parser.add_option("-m", "--merge", help="merge into single file?", dest="merge", action="store_true")
         parser.add_option("-c", "--com", dest="com",  help="the comport to use")
+        parser.add_option("-fi", "--firmware", dest="firmware", type="int", choices=[1,2], help="firmware of your GH: (1 for old, 2 for new)")
+        
         
         parser.add_option("-i", "--input", help="input file(s)", action="append", dest="input")
         parser.add_option("-o", "--output", help="the path to output to", dest="output")
@@ -190,6 +191,10 @@ def main():
         
         if len(args) != 1:
             parser.error("incorrect number of arguments")
+        
+        #set serial port
+        if options.firmware:
+            gh.config.set('general', 'firmware', options.firmware)
         
         #set serial port
         if options.com:

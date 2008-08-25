@@ -203,8 +203,6 @@ class Waypoint(Point):
     }
     
     def __init__(self, latitude = 0, longitude = 0, altitude = 0, title = '', type = 0):
-        #self.latitude = Coordinate(latitude)
-        #self.longitude = Coordinate(longitude)
         self.altitude = altitude
         self.title = title
         self.type = type
@@ -425,30 +423,27 @@ class ExportFormat(object):
             with open(Utilities.getAppPrefix('exportTemplates', '%s.txt' % format)) as f:
                 templateImport = f.read()
             
-            templateConfig = ConfigParser.SafeConfigParser()
-            #setting defaults
-            templateConfig.add_section(format)
-            templateConfig.set(format, 'filename', format)
-            templateConfig.set(format, 'nicename', format)
-            templateConfig.set(format, 'extension', format)
-            templateConfig.set(format, 'hasMultiple', "false")
-            templateConfig.set(format, 'hasPre', "false")
-        
-            templateConfig.read(Utilities.getAppPrefix('exportTemplates', 'formats.ini'))   
-            
-            self.filename = format
-            self.nicename = templateConfig.get(format, 'nicename')
-            self.extension = templateConfig.get(format, 'extension')
+            templateConfig = ConfigParser.SafeConfigParser({
+                'nicename':"%(default)s",
+                'extension':"%(default)s",
+                'hasMultiple': "false",
+            })    
+            templateConfig.read(Utilities.getAppPrefix('exportTemplates', 'formats.ini'))
+            if not templateConfig.has_section(format):
+                templateConfig.add_section(format)
+                                    
+            self.name        = format
+            self.nicename    = templateConfig.get(format, 'nicename', vars={'default':format})
+            self.extension   = templateConfig.get(format, 'extension', vars={'default':format})
             self.hasMultiple = templateConfig.getboolean(format, 'hasMultiple')
-            #self.hasPre = os.path.exists(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % format)),
-            self.hasPre = False
-            self.template = Template(templateImport)
+            self.hasPre      = os.path.exists(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % format))
+            self.template    = Template(templateImport)
         else:
-            self.logger.error('no such export format')
-            return None
+            self.logger.error('%s: no such export format' % format)
+            raise ValueError('%s: no such export format' % format)
     
     def __str__(self):
-        return "%s" % self.filename
+        return "%s" % self.name
     
     def exportTrack(self, track, **kwargs):
         self.__export([track], **kwargs)
@@ -462,7 +457,7 @@ class ExportFormat(object):
     
     def __export(self, tracks, **kwargs):
         if self.hasPre:
-            exec open(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.filename)).read()
+            exec open(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)).read()
             self.pre = pre(track)
                 
         if 'path' in kwargs:
@@ -472,7 +467,6 @@ class ExportFormat(object):
           
         path = os.path.join(path, "%s.%s" % (tracks[0].date.strftime("%Y-%m-%d_%H-%M-%S"), self.extension))
         #first arg is for compatibility reasons
-        #content = self.template.render(tracks = [track.toDict() for track in tracks], track = tracks[0].toDict())
         content = self.template.render(tracks = tracks, track = tracks[0])
 
         with open(path, 'wt') as f:
@@ -495,7 +489,8 @@ class GH600ParseException(GH600Exception):
         if self.what:
             return "Error parsing %s: Got %i, expected %i" % (self.what, self.length, self.expected) 
         else:
-            super(GH600ParseException, self).__str__()
+            return super(GH600ParseException, self).__str__()
+
 
 def serial_required(function):
     def serial_required_wrapper(x, *args, **kw):
@@ -504,14 +499,14 @@ def serial_required(function):
             return function(x, *args, **kw)
         except GH600SerialException, e:
             raise
-        except:
-            raise
         finally:
             x._disconnectSerial()
     return serial_required_wrapper
 
 
-class SerialInterface():    
+class SerialInterface():
+    _sleep = 2
+    
     def _connectSerial(self):
         """connect via serial interface"""
         try:
@@ -527,7 +522,6 @@ class SerialInterface():
         """disconnect the serial connection"""
         self.serial.close()
         self.logger.debug("serial connection closed")
-
     
     def _writeSerial(self, command, *args, **kwargs):
         #try:
@@ -536,49 +530,45 @@ class SerialInterface():
             else:
                 hex = command
             
-            self.logger.debug("writing to serialport: " + hex)
+            self.logger.debug("writing to serialport: %s" % hex)
             self.serial.write(Utilities.hex2chr(hex))
             #self.serial.sendBreak(2)
-            time.sleep(2)
-            self.logger.debug("waiting at serialport: " + str(self.serial.inWaiting()))
+            time.sleep(self._sleep)
+            self.logger.debug("waiting at serialport: %i" % self.serial.inWaiting())
         #except:
         #    raise GH600SerialException
-        
+    
+    def _readSerial(self, size = 2070):
+        return Utilities.chr2hex(self.serial.read(size))
+    
     def _querySerial(self, command, *args, **kwargs):
-        self._writeSerial(command, *args, **kwargs)
-        return Utilities.chr2hex(self.serial.read(2070))
+        tries = 0
+        while True:
+            tries += 1
+            self._writeSerial(command, *args, **kwargs)
+            data = self._readSerial()
+            if data:
+                return data
+            else:
+                if tries < 2:
+                    self.logger.debug("no data at serial port, retry command #%i" % tries)
+                    time.sleep(self._sleep)
+                    continue
+                else:
+                    raise GH600SerialException
         
     def _diagnostic(self):
         """check if a connection can be established"""
         try:
             self._connectSerial()
+            self._querySerial('whoAmI')
             self._disconnectSerial()
-            print "connection established successfully"
+            self.logger.info("serial connection established successfully")
             return True
         except GH600SerialException:
             self.logger.info("error establishing serial port connection, please check your config.ini file")
             return False
     
-    '''
-    def _getLikelyPort(self, availableOnly = True):
-        """utility function for finding the most likely serialport the gh615 is connected to"""
-        
-        if os.name == 'nt':
-            from serial.serialscan32 import comports
-            
-            ports = list()
-            for port, desc, hwid in comports(availableOnly):
-                #print "%-10s: %s (%s)" % (port, desc, hwid)
-                portMatch = re.search("Prolific.*\(COM(\d+)\)", desc)
-                #portMatch = re.search("Blue.*", desc)
-                if portMatch :
-                    ports.append(port)
-                pass
-            return ports
-        else:
-            return []
-    '''
-
 
 class GH600(SerialInterface):
     """api for Globalsat GH600"""
@@ -619,25 +609,26 @@ class GH600(SerialInterface):
             self.logger.addHandler(outputHandler)
             
         if self.__class__ is GH600:
-            #we need to downcast to a specific modell
-            product = self.config.get("general", "product")
-            if not product:
+            if self.config.has_option("general", "firmware"):
+                product = {1:'GH-615', 2:'GH-625'}[self.config.getint("general", "firmware")]
+            else:
                 product = self.getProductVersion()
-                
+            
+            #downcasting to a specific model
             if product == "GH-615":
                 self.__class__ = GH615
             elif product == "GH-625":
                 self.__class__ = GH625
         
     @serial_required
-    def getProductVersion(self):
+    def getProductModel(self):
         response = self._querySerial('whoAmI')
         if response:
             watch = Utilities.hex2chr(response[6:-4])
-            product, version = watch[:-1], watch[-1:]
+            product, model = watch[:-1], watch[-1:]
         else: #no response received, assuming command was not understood => old firmware
             product = "GH615"
-        self.logger.info('i am a Globalsat %s' % product)
+        self.logger.info('i am a Globalsat %s%s' % (product, model))
         return product
                                            
     def getExportFormats(self):
@@ -689,9 +680,9 @@ class GH600(SerialInterface):
     @serial_required
     def formatTracks(self):
         self._writeSerial('formatTracks')
-        #wait for response
+        #wait long for response
         time.sleep(10)
-        response = Utilities.chr2hex(self.serial.read(4070))
+        response = self._readSerial()
         
         if response == '79000000':
             self.logger.info('format tracks successful')
@@ -758,7 +749,7 @@ class GH600(SerialInterface):
     def formatWaypoints(self):
         self._writeSerial('formatWaypoints')
         time.sleep(10)
-        response = Utilities.chr2hex(self.serial.read(4070))
+        response = self._readSerial()
         
         if response == '75000000':
             self.logger.info('deleted all waypoints')
@@ -817,11 +808,9 @@ class GH600(SerialInterface):
             
 
 class GH615(GH600):
-    def __init__(self):
-        self.COMMANDS.update({
-             'setTracks': '02%(payload)s%(isFirst)s%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s' 
-        })
-        super(GH615, self).__init__()
+    GH600.COMMANDS.update({
+         'setTracks': '02%(payload)s%(isFirst)s%(trackInfo)s%(from)s%(to)s%(trackpoints)s%(checksum)s' 
+    })
        
     @serial_required
     def getTracklist(self):
@@ -847,28 +836,29 @@ class GH615(GH600):
                     
         tracks = []
         last = -1
+        initializeNewTrack = True
         
         while True:
-            data = Utilities.chr2hex(self.serial.read(2070))
+            data = self._readSerial()
             time.sleep(2)
             
             if data != '8A000000':
+                #shoud new track be initialized?
+                if initializeNewTrack:
+                    self.logger.debug('initalizing new track')
+                    track = Track().fromHex(data[6:50])
+                    initializeNewTrack = False
+                
                 if (Utilities.hex2dec(data[50:54]) == last + 1):
                     self.logger.debug('getting trackpoints %d-%d' % (Utilities.hex2dec(data[50:54]), Utilities.hex2dec(data[54:58])))
-                    #check if first segment of track
-                    if last == -1:
-                        self.logger.debug('initalizing new track')
-                        track = Track().fromHex(data[6:50])
-                    #parse trackpoints
                     track.addTrackpointsFromHex(data[58:-2])
                     #remeber last trackpoint
                     last = Utilities.hex2dec(data[54:58])
                     #check if last segment of track
                     if len(data) < 4140:
-                        #init new track
                         tracks.append(track)
                         last = -1
-                    #request next segment
+                        initializeNewTrack = True
                     self._writeSerial('requestNextTrackSegment')
                 else:
                     #re-request last segment again
@@ -897,9 +887,9 @@ class GH615(GH600):
                     #this probably means segment was not as expected, should resend previous segment?
                     self.logger.debug('wtf')
                 else:
-                    print response
-                    print 'error uploading track'
-                    raise Exception
+                    #print response
+                    self.logger.info('error uploading track')
+                    raise GH600Exception
         return len(tracks)
 
     
@@ -912,7 +902,7 @@ class GH625(GH600):
     @serial_required
     def getTracklist(self):
         tracklist = self._querySerial('getTracklist')
-
+        
         if len(tracklist) > 8:
             tracks = Utilities.chop(tracklist[6:-2],62)#trim header, wtf?
             self.logger.info('%i tracks found' % len(tracks))    
@@ -935,7 +925,7 @@ class GH625(GH600):
         initializeNewTrack = True
         
         while True:
-            data = Utilities.chr2hex(self.serial.read(2070))
+            data = self._readSerial()
             time.sleep(2)
             
             if data != '8A000000':
@@ -943,18 +933,17 @@ class GH625(GH600):
                 if initializeNewTrack:
                     self.logger.debug('initalizing new track')
                     track = TrackWithLaps().fromHex(data[6:64])
+                    initializeNewTrack = False
                 
                 if data[60:64] == "FFFF":
                     self.logger.debug('adding laps')
                     track.addLapsFromHex(data[68:-2])
-                    initializeNewTrack = False
                     self._writeSerial('requestNextTrackSegment')
                 
                 elif Utilities.hex2dec(data[60:64]) == last + 1:
                     self.logger.debug('adding trackpoints %d-%d' % (Utilities.hex2dec(data[60:64]), Utilities.hex2dec(data[64:68])))
                     track.addTrackpointsFromHex(data[68:-2])
                     last = Utilities.hex2dec(data[64:68])
-                    initializeNewTrack = False
                     #check if last segment of track
                     if len(data) < 4140:
                         tracks.append(track)
@@ -972,7 +961,6 @@ class GH625(GH600):
                 for track in tracks:
                     for lap in track.laps:
                         lap.calculateCoordinates(track.trackpoints)
-
                 break        
 
         self.logger.info('number of tracks %d' % len(tracks))
@@ -987,7 +975,7 @@ class GH625(GH600):
             if response == '91000000' or response == '90000000':
                 self.logger.info('uploaded lap information of track successfully')
             else:
-                sys.exit()
+                raise GH600Exception
 
             trackpointChunks = Utilities.chop(hex(track)[len(lapChunk):], 4152)
             for i, chunk in enumerate(trackpointChunks):
@@ -1001,7 +989,7 @@ class GH625(GH600):
                     #this probably means segment was not as expected, should resend previous segment?
                     self.logger.debug('wtf')
                 else:
-                    print response
-                    print 'error uploading track'
-                    raise Exception
+                    #print response
+                    self.logger.info('error uploading track')
+                    raise GH600Exception
         return len(tracks)
