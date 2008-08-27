@@ -6,7 +6,6 @@
 To use the python sources you need to have the following libraries installed
   * [http://python.org/ Python 2.5]
   * [http://pyserial.sourceforge.net/ pySerial]
-    * Python 2.2 or newer
     * win32all extensions on Windows
 
 = other code used =
