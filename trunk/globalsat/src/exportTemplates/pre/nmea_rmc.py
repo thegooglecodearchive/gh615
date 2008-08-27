@@ -28,13 +28,11 @@ def pre(track):
         if len(sumHex)==1: sumHex = '0'+sumHex
         return sumHex
     
-    for trackpoint in track['trackpoints']:
-        trackpoint['latitude_dms']  = formatdms(trackpoint['latitude'],1)
-        trackpoint['longitude_dms'] = formatdms(trackpoint['longitude'],0)
-        trackpoint['status']        = 'A' # information not available
-        trackpoint['speed_knots']   = trackpoint['speed']*0.539956803
-        trackpoint['angle']         = '000.0' # information not available
-        trackpoint['magnetic']      = '000.0,W' # information not available
-        trackpoint['checksum']      = nmeaChecksum('$GPRMC,'+trackpoint['status']+','+str(trackpoint['date'].strftime("%H%M%S"))+','+str(trackpoint['latitude_dms'])+','+str(trackpoint['longitude_dms'])+','+str(trackpoint['speed_knots'])+','+str(trackpoint['angle'])+','+str(trackpoint['date'].strftime("%d%m%y"))+','+trackpoint['magnetic'])
-    
-    return {'nmeaChecksum': nmeaChecksum}
+    for trackpoint in track.trackpoints:
+        trackpoint.latitude_dms  = formatdms(trackpoint.latitude,1)
+        trackpoint.longitude_dms = formatdms(trackpoint.longitude,0)
+        trackpoint.status        = 'A' # information not available
+        trackpoint.speed_knots   = trackpoint.speed * 0.539956803
+        trackpoint.angle         = '000.0' # information not available
+        trackpoint.magnetic      = '000.0,W' # information not available
+        trackpoint.checksum      = nmeaChecksum('$GPRMC,'+trackpoint.status+','+str(trackpoint.date.strftime("%H%M%S"))+','+str(trackpoint.latitude_dms)+','+str(trackpoint.longitude_dms)+','+str(trackpoint.speed_knots)+','+str(trackpoint.angle)+','+str(trackpoint.date.strftime("%d%m%y"))+','+trackpoint.magnetic)

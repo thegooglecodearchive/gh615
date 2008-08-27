@@ -1,4 +1,4 @@
-<<?= str('?') ?>xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"%>
 <gpx version="1.1"
 	creator="code.google.com/p/GH615"
 	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -9,45 +9,50 @@
 						http://www.cluetrust.com/XML/GPXDATA/1/0
 						http://www.cluetrust.com/Schemas/gpxdata10.xsd">
 
-<time></time>
-
-<? for track in tracks: ?>
+<% for i, track in enumerate(tracks) %>
 <trk>
+	<number>$i</number>
+	
+	<% if track.laps %>
+	<extensions>
+		<gpxdata:run>
+			<gpxdata:laps>
+			<% for i, lap in enumerate(track.laps) %>
+				<gpxdata:lap>
+					<gpxdata:index>$i</gpxdata:index>
+					<gpxdata:startPoint lat="$lap.startPoint.latitude" lon="$lap.startPoint.longitude" />
+					<gpxdata:endPoint lat="$lap.endPoint.latitude" lon="$lap.endPoint.longitude" />
+					<gpxdata:startTime>$lap.start.strftime("%Y-%m-%dT%H:%M:%SZ")</gpxdata:startTime>
+					<gpxdata:elapsedTime>$lap.elapsed.seconds</gpxdata:elapsedTime>
+					<gpxdata:calories>$lap.calories</gpxdata:calories>
+					<gpxdata:distance>$lap.distance</gpxdata:distance>
+					
+					<gpxdata:trackReference trackNumber="$i">
+						<gpxdata:startPoint>0</gpxdata:startPoint>
+						<gpxdata:endPoint>0</gpxdata:endPoint>
+					</gpxdata:trackReference>
+					
+					<gpxdata:trigger kind="manual"/>
+					<gpxdata:intensity>active</gpxdata:intensity>
+				</gpxdata:lap>
+			<% endfor %>
+			</gpxdata:laps>
+		</gpxdata:run>
+	</extensions>
+	<% endif %>
+	
 	<trkseg>
-	<? for trackpoint in track.trackpoints: ?>
-		<trkpt lat="<?= trackpoint.latitude ?>" lon="<?= trackpoint.longitude ?>">
-			<ele><?= trackpoint.altitude ?></ele>
-			<speed><?= trackpoint.speed ?></speed>
-			<time><?= trackpoint.date.strftime("%Y-%m-%dT%H:%M:%SZ") ?></time>
+	<% for trackpoint in track.trackpoints %>
+		<trkpt lat="$trackpoint.latitude" lon="$trackpoint.longitude">
+			<ele>$trackpoint.altitude</ele>
+			<time>$trackpoint.date.strftime("%Y-%m-%dT%H:%M:%SZ")</time>
 			<extensions>
-				<gpxdata:hr><?= trackpoint.heartrate ?></gpxdata:hr>
+				<gpxdata:hr>$trackpoint.heartrate</gpxdata:hr>
 			</extensions>
 		</trkpt>
-	<? end ?>
+	<% endfor %>
 	</trkseg>
 </trk>
-<? end ?>
-
-<? if track.laps: ?>
-<gpxdata:run>
-	<gpxdata:sport></gpxdata:sport>
-	<gpxdata:programType></gpxdata:programType>
-	<gpxdata:laps>
-	<? for i, lap in enumerate(track.laps): ?>
-		<gpxdata:lap>
-			<gpxdata:index><?= i ?><gpxdata:index>
-			<gpxdata:startPoint lat="<?= lap.startPoint.latitude ?>" lon="<?= lap.startPoint.longitude ?>" />
-			<gpxdata:endPointPoint lat="<?= lap.endPoint.latitude ?>" lon="<?= lap.endPoint.longitude ?>" />
-			<gpxdata:startTime><?= lap.start.strftime("%Y-%m-%dT%H:%M:%SZ") ?></gpxdata:startTime>
-			<gpxdata:elapsedTime><?= lap.elapsed.seconds ?></gpxdata:elapsedTime>
-			<gpxdata:calories><?= lap.calories ?></gpxdata:calories>
-			<gpxdata:distance><?= lap.distance ?></gpxdata:distance>
-			<gpxdata:trigger></gpxdata:trigger>
-			<gpxdata:trackReference></gpxdata:trackReference>
-		</gpxdata:lap>
-	<? end ?>
-	</gpxdata:laps>
-</gpxdata:run>
-<? end ?>
+<% endfor %>
 
 </gpx>

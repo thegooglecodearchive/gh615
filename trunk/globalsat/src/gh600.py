@@ -4,7 +4,7 @@ import re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, l
 import serial
 from decimal import Decimal
 from gpxParser import GPXParser
-from stpy import Template, FailsafeTemplate
+from templates import Template
 
 class Utilities():
     @classmethod
@@ -420,8 +420,6 @@ class TrackWithLaps(Track):
 class ExportFormat(object):    
     def __init__(self, format):
         if os.path.exists(Utilities.getAppPrefix('exportTemplates', '%s.txt' % format)):
-            with open(Utilities.getAppPrefix('exportTemplates', '%s.txt' % format)) as f:
-                templateImport = f.read()
             
             templateConfig = ConfigParser.SafeConfigParser({
                 'nicename':"%(default)s",
@@ -436,8 +434,7 @@ class ExportFormat(object):
             self.nicename    = templateConfig.get(format, 'nicename', vars={'default':format})
             self.extension   = templateConfig.get(format, 'extension', vars={'default':format})
             self.hasMultiple = templateConfig.getboolean(format, 'hasMultiple')
-            self.hasPre      = os.path.exists(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % format))
-            self.template    = FailsafeTemplate(templateImport)
+            #self.template    = FailsafeTemplate(templateImport)
         else:
             self.logger.error('%s: no such export format' % format)
             raise ValueError('%s: no such export format' % format)
@@ -456,9 +453,16 @@ class ExportFormat(object):
                 self.exportTrack(track, **kwargs)
     
     def __export(self, tracks, **kwargs):
-        if self.hasPre:
-            exec open(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)).read()
-            self.pre = pre(track)
+        if os.path.exists(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)):
+            #with open(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)) as f:
+            #    pre_code = f.read()
+            #exec pre_code
+            
+            #execfile(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)) in {}
+            #print dir(locals())
+            sys.path.append(Utilities.getAppPrefix('exportTemplates', 'pre'))
+            pre_processor = __import__(self.name)
+            pre_processor.pre(tracks[0])
                 
         if 'path' in kwargs:
             path = os.path.join(kwargs['path'])
@@ -467,12 +471,9 @@ class ExportFormat(object):
                 
         path = os.path.join(path, "%s.%s" % (tracks[0].date.strftime("%Y-%m-%d_%H-%M-%S"), self.extension))
         #first arg is for compatibility reasons
-        rendered = self.template.render(tracks = tracks, track = tracks[0])
+        t = Template.from_file(Utilities.getAppPrefix('exportTemplates', '%s.txt' % self.name))
+        rendered = t.render(tracks = tracks, track = tracks[0])
         
-        #from templates import Template
-        #t = Template.from_file(Utilities.getAppPrefix('exportTemplates', '%s.txt' % self.name))
-        #rendered = t.render(tracks = tracks, track = tracks[0])
-
         with open(path, 'wt') as f:
             f.write(rendered)
 
@@ -543,7 +544,9 @@ class SerialInterface():
         #    raise GH600SerialException
     
     def _readSerial(self, size = 2070):
-        return Utilities.chr2hex(self.serial.read(size))
+        data = Utilities.chr2hex(self.serial.read(size))
+        self.logger.debug("serial port returned: %s" % data if len(data) < 30 else "%s... (truncated)" % data[:30])
+        return data
     
     def _querySerial(self, command, *args, **kwargs):
         tries = 0

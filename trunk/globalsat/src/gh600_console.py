@@ -37,7 +37,6 @@ def choose():
     if command == "a":
         print "Getting tracklist"
         tracklist()
-        choose()
     
     elif command == "b":
         print "Download track(s)"
@@ -53,19 +52,17 @@ def choose():
         
         merge = False
         ef = ExportFormat(format)
-        if ef.hasMultiple:
+        if ef.hasMultiple and len(tracks) > 1:
             merge = raw_input("Do you want to merge all tracks into a single file? [y/n]: ").strip()
             merge = True if merge == "y" else False
         
         ef.exportTracks(tracks, merge = merge)
         print 'exported %d tracks' % len(tracks)
-        choose()
         
     elif command == "c":
         tracks = gh.getAllTracks()
         results = gh.exportTracks(tracks,'gpx')
         print 'exported tracks', results
-        choose()
         
     elif command == "d":
         print "Upload Tracks"
@@ -85,28 +82,24 @@ def choose():
         tracks = gh.importTracks(filesToBeImported)        
         results = gh.setTracks(tracks)
         print 'successfully uploaded tracks ', str(results)
-        choose()
         
     elif command == "e":
         print "Download Waypoints"
         waypoints = gh.getWaypoints()    
         results = gh.exportWaypoints(waypoints)
         print 'exported Waypoints to', results
-        choose()
         
     elif command == "f":
         print "Upload Waypoints"
         waypoints = gh.importWaypoints()        
         results = gh.setWaypoints(waypoints)
         print 'Imported Waypoints', results
-        choose()
         
     elif command == "gg":
         print "Delete all Tracks"
         warning = raw_input("warning, DELETING ALL TRACKS").strip()
         results = gh.formatTracks()
         print 'Deleted all Tracks:', results
-        choose()
     
     elif command == "h":
         print 'Testing serial port connectivity'
@@ -125,20 +118,17 @@ def choose():
                     f.close()
         else:
             print 'no suitable ports found'
-        choose()
     
     elif command == "hh":
         print "Delete all Waypoints"
         warning = raw_input("WARNING DELETING ALL WAYPOINTS").strip()
         results = gh.formatWaypoints()
         print 'Formatted all Waypoints:', results
-        choose()
     
     elif command == "i":
         unit = gh.getUnitInformation()
-        print "%s waypoints on watch" % unit['waypoint_count']
-        print "%s trackpoints on watch" % unit['trackpoint_count']
-        choose()
+        print "* %s waypoints on watch" % unit['waypoint_count']
+        print "* %s trackpoints on watch" % unit['trackpoint_count']
     
     elif command == "x":
         print gh.getNmea()
@@ -148,7 +138,8 @@ def choose():
         
     else:
         print "whatever"
-        choose()
+    
+    choose()
 
 
 def main():  
@@ -192,7 +183,7 @@ def main():
         if len(args) != 1:
             parser.error("incorrect number of arguments")
         
-        #set serial port
+        #set firmware version
         if options.firmware:
             gh.config.set('general', 'firmware', options.firmware)
         

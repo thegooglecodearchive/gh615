@@ -13,12 +13,12 @@
         var map = new GMap2(document.getElementById("map"));
         map.addControl(new GSmallMapControl());
         map.addControl(new GMapTypeControl());
-        map.setCenter(new GLatLng(<?= track['trackpoints'][0]['latitude'] ?>, <?= track['trackpoints'][0]['longitude'] ?>), 15);
+        map.setCenter(new GLatLng($track.trackpoints[0].latitude, $track.trackpoints[0].longitude), 15);
         map.setMapType(G_SATELLITE_MAP);
 
         // Add an encoded polyline.
-        var encodedPoints = "<?= track['pre'][0] ?>";
-        var encodedLevels = "<?= track['pre'][1] ?>";
+        var encodedPoints = "$track.encodedPoints";
+        var encodedLevels = "$track.encodedLevels";
  
         var encodedPolyline = new GPolyline.fromEncoded({
 		color: "#3333cc",

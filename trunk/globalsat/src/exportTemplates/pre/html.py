@@ -30,7 +30,7 @@ def pre(track):
         return encoded_points_str, encoded_levels_str
     
     def encode_lat_or_long(x, prev_int):
-        int_value = int(x * 1e5)
+        int_value = int(float(x) * 1e5)
         delta = int_value - prev_int
         return encode_signed(delta), int_value
     
@@ -116,9 +116,7 @@ def pre(track):
     
     #main execution
     pairs = list()
-    for trackpoint in track['trackpoints']:
-        pairs.append((float(trackpoint['latitude']), float(trackpoint['longitude'])))    
+    for trackpoint in track.trackpoints:
+        pairs.append((trackpoint.latitude, trackpoint.longitude))    
     
-    polyline = encode_pairs(pairs)
-    
-    return polyline
+    track.encodedPoints, track.encodedLevels = encode_pairs(pairs)
