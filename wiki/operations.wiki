@@ -8,12 +8,12 @@
   * delete all tracks
   * download waypoints
   * upload waypoints
+  * delete all waypoints
   * get user Information (including waypoint- and track-count)
   * get live NMEA data
 
-=unknown if possible=
-  * delete individual/all waypoints using software
-  * upload routes
+=Not implemented=
+  * delete individual track/waypoint using software
 
 =functions from GH615_PCAPI.dll=
 
