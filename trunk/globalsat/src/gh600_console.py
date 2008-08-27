@@ -141,7 +141,7 @@ def choose():
         choose()
     
     elif command == "x":
-        print gh._diagnostic()
+        print gh.getNmea()
     
     elif command == "q":
         sys.exit()

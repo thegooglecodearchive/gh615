@@ -32,6 +32,7 @@
     :license: BSD License.
 """
 import re
+from collections import defaultdict
 
 tag_re = re.compile(r'(.*?)(<\?[=\#]?\s*.*?\s*\?>)(?uism)')
 
@@ -43,7 +44,7 @@ class Template(object):
         indention = 0
         def write(data, offset):
             sourcelines.append(('    ' * (indention - offset)) + data)
-        
+
         for token_type, data in self.tokenize(source):
             if token_type == 'TEXT':
                 if data:
@@ -113,6 +114,89 @@ class Template(object):
         return ''.join(lines)
     
 
+class FailsafeTemplate(Template):
+    def __init__(self, source):
+        sourcelines = []
+        indention = 0
+        def write(data, offset):
+            sourcelines.append(('    ' * (indention - offset)) + data)
+
+        for token_type, data in self.tokenize(source):
+            if token_type == 'TEXT':
+                if data:
+                    write('__write(%r)' % data, 0)
+            elif token_type == 'VARIABLE':
+                if data:
+                    write('try:', 0)
+                    write('    __write_var(%s)' % data, 0)
+                    write('except:', 0)
+                    write('    pass', 0)
+            elif token_type == 'BLOCK':
+                statement = data.split()[0]
+                if data == 'end':
+                    indention -= 2
+                    write('except:', 0)
+                    write('    pass', 0)
+                elif statement in ('else:', 'elif', 'except:'):
+                    write(data, 0)
+                else:
+                    write('try:', 0)
+                    write("    " + data, 0)
+                    indention += 2
+                    
+        source = '\n'.join(sourcelines)
+        self.code = compile(source, '<template>', 'exec')
+        
+    '''
+    def renderFailsafe(self, *args, **kwargs):
+        lines = []
+        d = dict(*args, **kwargs)
+        #d = defaultdict(lambda: '', *args, **kwargs)
+        d['__write'] = lines.append
+        d['__write_var'] = lambda x: lines.append(self.get_variable(x))  
+        d['enumerate'] = enumerate           
+        exec self.code in d
+        return ''.join(lines)
+    '''
+    
+    
+    
+if __name__ == "__main__":
+    templ = '''    
+    
+    <?= laps[0].something ?>
+    
+    <? for i, value in enumerate(laps): ?>
+        *  <?= i ?> <?= value ?>
+    <? end ?>
+    
+    <? if laps: ?>
+        I have <?= laps ?>
+    <? end ?>
+    
+    <? for value in laps: ?>
+        * <?= value ?>
+    <? end ?>
+        
+    <? if nothere: ?>
+        <?= nothere ?> should not be here
+    <? end ?>
+    '''
+ 
+    class Track():
+        def __getitem__(self, attr):
+            try:
+                return getattr(self, attr)
+            except AttributeError:
+                return "wurst"
+
+    
+    a = Track()
+    
+    t = FailsafeTemplate(templ)
+    print t.render(laps = [a,a,a,a])
+    
+'''
 class TemplateHTML(Template):
     parentInit = Template.__init__
     parentRender = Template.render
@@ -163,3 +247,4 @@ class TemplateHTML(Template):
         d['__write_var'] = lambda x: lines.append(self.get_variable(x))
         exec self.code in d
         return ''.join(lines)
+'''

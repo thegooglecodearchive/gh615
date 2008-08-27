@@ -4,7 +4,7 @@ import re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, l
 import serial
 from decimal import Decimal
 from gpxParser import GPXParser
-from stpy import Template, TemplateHTML
+from stpy import Template, FailsafeTemplate
 
 class Utilities():
     @classmethod
@@ -437,7 +437,7 @@ class ExportFormat(object):
             self.extension   = templateConfig.get(format, 'extension', vars={'default':format})
             self.hasMultiple = templateConfig.getboolean(format, 'hasMultiple')
             self.hasPre      = os.path.exists(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % format))
-            self.template    = Template(templateImport)
+            self.template    = FailsafeTemplate(templateImport)
         else:
             self.logger.error('%s: no such export format' % format)
             raise ValueError('%s: no such export format' % format)
@@ -464,13 +464,17 @@ class ExportFormat(object):
             path = os.path.join(kwargs['path'])
         else:
             path = Utilities.getAppPrefix('export')
-          
+                
         path = os.path.join(path, "%s.%s" % (tracks[0].date.strftime("%Y-%m-%d_%H-%M-%S"), self.extension))
         #first arg is for compatibility reasons
-        content = self.template.render(tracks = tracks, track = tracks[0])
+        rendered = self.template.render(tracks = tracks, track = tracks[0])
+        
+        #from templates import Template
+        #t = Template.from_file(Utilities.getAppPrefix('exportTemplates', '%s.txt' % self.name))
+        #rendered = t.render(tracks = tracks, track = tracks[0])
 
         with open(path, 'wt') as f:
-            f.write(content)
+            f.write(rendered)
 
 
 class GH600Exception():
@@ -762,6 +766,8 @@ class GH600(SerialInterface):
     @serial_required
     def getNmea(self):
         #http://regexp.bjoern.org/archives/gps.html
+        #looks interesting
+        #http://twistedmatrix.com/trac/browser/trunk/twisted/protocols/gps/nmea.py
         def dmmm2dec(degrees,sw):
             deg = math.floor(degrees/100.0) #decimal degrees
             frac = ((degrees/100.0)-deg)/0.6 #decimal fraction
@@ -772,12 +778,15 @@ class GH600(SerialInterface):
         
         line = ""
         while not line.startswith("$GPGGA"):
+            self.logger.debug("waiting at serialport: %i" % self.serial.inWaiting())
             line = self.serial.readline()
+            print line
         
         # calculate our lat+long
         tokens = line.split(",")
         lat = dmmm2dec(float(tokens[2]),tokens[3]) #[2] is lat in deg+minutes, [3] is {N|S|W|E}
         lng = dmmm2dec(float(tokens[4]),tokens[5]) #[4] is long in deg+minutes, [5] is {N|S|W|E}
+        return lat, lng
     
     @serial_required
     def getUnitInformation(self):
@@ -913,7 +922,7 @@ class GH625(GH600):
         
     @serial_required
     def getTracks(self, trackIds):
-        trackIds = [Utilities.dec2hex(id, 4) for id in trackIds ]
+        trackIds = [Utilities.dec2hex(id, 4) for id in trackIds]
         payload = Utilities.dec2hex((len(trackIds) * 512) + 896, 4)
         numberOfTracks = Utilities.dec2hex(len(trackIds), 4) 
         checksum = Utilities.checkersum("%s%s%s" % (payload, numberOfTracks, ''.join(trackIds)))
@@ -986,7 +995,7 @@ class GH625(GH600):
                 elif response == '91000000' or response == '90000000':
                     self.logger.debug("uploaded chunk %i of %i" % (i+1, len(trackpointChunks)))
                 elif response == '92000000':
-                    #this probably means segment was not as expected, should resend previous segment?
+                    #this probably means segment was not as expected, resend previous segment?
                     self.logger.debug('wtf')
                 else:
                     #print response
