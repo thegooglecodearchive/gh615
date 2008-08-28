@@ -39,7 +39,7 @@ ${expression} or <%py print expression %>
 For a track, the following information is available:
 
   * 'date': the time the track recording started, python datetime object
-  * 'duration': the duration of the track, int, second
+  * 'duration': the duration of the track, timedelta object
   * 'distance': the distance traveled, int, meter
   * 'calories': calories burned, int
   * 'topspeed': the top speed during the track, float, km/h
@@ -53,12 +53,12 @@ access these values like this: `$track.duration`
 ===Trackpoint===
 For a trackpoint, the following information is available:
 
-  * 'latitude': the latitude of the trackpoint, Decimal
-  * 'longitude': the longitude of the trackpoint, Decimal
+  * 'latitude': the latitude of the trackpoint, decimal
+  * 'longitude': the longitude of the trackpoint, decimal
   * 'altitude': the altitude of the trackpoint, int, meter
   * 'speed': the speed at the time of the trackpoint, float, km/h
   * 'heartrate': the heartrate at the time of the trackpoint, int, bpm
-  * 'interval': the time from the previous treackpoint, int, milliseonds
+  * 'interval': the time from the previous treackpoint, python timedelta object
   * 'date': the time of the trackpoint recording, python datetime object
 
 access to these values: `$trackpoints[i].latitude` or within a for-loop `$trackpoint.latitude`
