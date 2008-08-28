@@ -1,5 +1,10 @@
 from __future__ import with_statement
-import re, string, math, datetime, time, os, sys, glob, ConfigParser, logging, logging.handlers
+import os, sys, glob
+
+import math
+import time, datetime
+import ConfigParser
+import logging
 
 import serial
 from decimal import Decimal
@@ -64,7 +69,7 @@ class Utilities():
     
     @classmethod 
     def getAppPrefix(self, *args):
-        #Return the location the app is running from
+        ''' Return the location the app is running from'''
         isFrozen = False
         try:
             isFrozen = sys.frozen
@@ -79,12 +84,7 @@ class Utilities():
         return appPrefix
 
 
-class Coordinate(Decimal):
-    '''
-    def __init__(self, value=0):
-        Decimal.__init__(self, value)
-    ''' 
-     
+class Coordinate(Decimal):     
     def __hex__(self):
         return Utilities.coord2hex(Decimal(self))
     
@@ -94,7 +94,7 @@ class Coordinate(Decimal):
             self = Coordinate(Utilities.hex2coord(hex))
             return self
         else:
-            raise GH600ParseException('Coordinate', len(hex), 8)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 8)
   
   
 class Point(object):
@@ -114,7 +114,7 @@ class Point(object):
             self.longitude = Coordinate().fromHex(hex[8:])
             return self
         else:
-            raise GH600ParseException('Point', len(hex), 16)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 16)
 
 
 class Trackpoint(Point):    
@@ -155,7 +155,7 @@ class Trackpoint(Point):
                         
             return self
         else:
-            raise GH600ParseException('Trackpoint', len(hex), 30)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 30)
     
     def calculateDate(self, date):
         self.date = date + datetime.timedelta(milliseconds = (self.interval * 100)) 
@@ -237,7 +237,7 @@ class Waypoint(Point):
             
             return self
         else:
-            raise GH600ParseException('Waypoint', len(hex), 36)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 36)
 
 class Lap(object):
     def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0,
@@ -263,7 +263,7 @@ class Lap(object):
  
             return self
         else:
-            raise GH600ParseException('Lap', len(hex), 44)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 44)
         
     def calculateDate(self, date):
         self.end = date + datetime.timedelta(milliseconds = (self.__until * 100))
@@ -336,7 +336,7 @@ class Track(object):
                 self.id = Utilities.hex2dec(hex[44:48])
             return self
         else:
-            raise GH600ParseException('Track', len(hex), 44)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 44)
         
     def addTrackpointsFromHex(self, hex):        
         trackpoints = Utilities.chop(hex,30)
@@ -407,7 +407,7 @@ class TrackWithLaps(Track):
                 self.id = Utilities.hex2dec(hex[58:62])
             return self
         else:
-            raise GH600ParseException('Track', len(hex), 58)
+            raise GH600ParseException(self.__class__.__name__, len(hex), 58)
         
     def addLapsFromHex(self, hex):
         laps = Utilities.chop(hex,44)
@@ -454,15 +454,10 @@ class ExportFormat(object):
     
     def __export(self, tracks, **kwargs):
         if os.path.exists(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)):
-            #with open(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)) as f:
-            #    pre_code = f.read()
-            #exec pre_code
-            
-            #execfile(Utilities.getAppPrefix('exportTemplates', 'pre', '%s.py' % self.name)) in {}
-            #print dir(locals())
             sys.path.append(Utilities.getAppPrefix('exportTemplates', 'pre'))
             pre_processor = __import__(self.name)
-            pre_processor.pre(tracks[0])
+            for track in tracks:
+                pre_processor.pre(track)
                 
         if 'path' in kwargs:
             path = os.path.join(kwargs['path'])
@@ -650,7 +645,7 @@ class GH600(SerialInterface):
         
     @serial_required
     def getTracklist(self):
-        raise NotImplemented
+        raise NotImplemented('This is an abstract method, please instantiate a subclass')
     
     def getAllTracks(self):
         allTracks = self.getTracklist()
@@ -659,7 +654,7 @@ class GH600(SerialInterface):
     
     @serial_required
     def getTracks(self, trackIds):
-        raise NotImplemented
+        raise NotImplemented('This is an abstract method, please instantiate a subclass')
     
     def importTracks(self, files, **kwargs):        
         if "path" in kwargs:
@@ -682,7 +677,7 @@ class GH600(SerialInterface):
     
     @serial_required
     def setTracks(self, tracks):
-        raise NotImplemented
+        raise NotImplemented('This is an abstract method, please instantiate a subclass')
 
     @serial_required
     def formatTracks(self):

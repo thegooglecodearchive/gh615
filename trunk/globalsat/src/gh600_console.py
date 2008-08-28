@@ -100,25 +100,7 @@ def choose():
         warning = raw_input("warning, DELETING ALL TRACKS").strip()
         results = gh.formatTracks()
         print 'Deleted all Tracks:', results
-    
-    elif command == "h":
-        print 'Testing serial port connectivity'
-        print 'Autodetecting serial port'
-        ports = gh.getSerialPort()
-        if ports:
-            print 'the most likely port your unit is connected to is ', ports[0]
-            prompt = raw_input("do you want to use "+ports[0]+" for this session instead of the port in the config.ini? [y,n]: ").strip()    
-            if prompt == 'y':
-                gh.config.set('serial','comport',ports[0])
-                
-                prompt = raw_input("do you want to use "+ports[0]+" as your permanent port? [y,n]: ").strip()
-                if prompt == 'y':
-                    f = open(gh.getAppPrefix('config.ini'),"w")
-                    gh.config.write(f)
-                    f.close()
-        else:
-            print 'no suitable ports found'
-    
+        
     elif command == "hh":
         print "Delete all Waypoints"
         warning = raw_input("WARNING DELETING ALL WAYPOINTS").strip()
@@ -233,7 +215,6 @@ def main():
                     
         if args[0] == "i":
             return gh.getUnitInformation()
-
             
         else:
             print "no valid argument, see README"
