@@ -2,7 +2,7 @@
 
 = Introduction =
 
-Globalsat released a beta firmware for the GH515 that basically upgrades the software to that of the GH625, meaning lap support and configurable screen, and more.
+Globalsat released a beta firmware for the GH515 that basically upgrades the software to that of the GH625, meaning lap support and configurable screen, and more. [http://www.usglobalsat.com/forum/topic.asp?TOPIC_ID=1564 Some first impressions here].
 
 = WARNING = 
 
@@ -10,6 +10,6 @@ The firmware is a beta, with all associated risk. Update at your own risk.
 
 = Latest Version =
 
-[http://code.google.com/p/gh615/downloads/detail?name=F-0TH-0C-0807311.GHX F-0TH-0C-0807311.GHX]
+[http://code.google.com/p/gh615/downloads/detail?name=F-0TH-0C-0807311.GHX F-0TH-0C-0807311.GHX] - works with both B and M models
 
 If you have a newer Version, please send it in.
