@@ -1,9 +1,11 @@
-#summary Insightful usage information
 #labels Phase-Deploy,Phase-Support,Featured
-
 = command line only =
 
 At the current time, this utility is command line only, meaning there is no Graphical User Interface. That should not keep you from trying it out, as the command line is very intuitive for the basic operations supported.
+
+= Configuration =
+
+Configuration is done via the `config.ini` file
 
 = Usage =
 
@@ -24,14 +26,15 @@ execute with the following arguments:
   * *h*: connection test - no options
   * *i*: unit information - no options
 
-== explanation of options ==
+== explanation of options ==  
   * *-t, --track*: id of a track to be downloaded (can be used multiple times)
   * *-f, --format*: export-format that will be used (default: gpx)
   * *-m, --merge*: whether the tracks should be merged into one file (only if supported by format) (default: false)
   * *-o, --output*: path to directory where exported files will be stored (default: /export)
   * *-i, --input*: files used for input (either formatted waypoints.txt of gpx file)
    
-  * *-c, --com*: set the comport that will be used for connecting
+  * *-fi, --firmware*: set to 1 if you have the old firmware without lap support (originally GH-615); 2 for the new firmware with lap-support  (overwrites the value specified in conig.ini)
+  * *-c, --com*: set the comport that will be used for connecting (overwrites the value specified in conig.ini)
 
 = examples =
 
