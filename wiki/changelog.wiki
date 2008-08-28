@@ -1,6 +1,13 @@
 #summary the changelog
 #labels Featured,Phase-QA
 
+= Build 158 =
+  * completely refactored everything
+  * added support for new GH625 Firmware, which supports laps
+  * uses Decimals instead of floats internally
+  * ability to delete all waypoints
+  * serial port communication improved
+ 
 = Build 128 =
   * No more crashes when exporting single tracks
   * waypoint type is now being correctly set when uploading waypoints
