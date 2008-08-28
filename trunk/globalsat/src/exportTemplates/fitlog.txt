@@ -6,21 +6,21 @@
   
   <AthleteLog>
   <% for track in tracks %>
-    <Activity StartTime= "$track.date.strftime("%Y-%m-%dT%H:%M:%SZ")">
+    <Activity StartTime="$track.date.strftime("%Y-%m-%dT%H:%M:%SZ")">
       <Metadata Source="Globalsat GH615M" Created="$track.date.strftime("%Y-%m-%dT%H:%M:%SZ")" Modified="$track.date.strftime("%Y-%m-%dT%H:%M:%SZ")" />
-      <Duration TotalSeconds="${track.duration / 10.0}" /> 
+      <Duration TotalSeconds="$track.duration.seconds" /> 
       <Distance TotalMeters="$track.distance" /> 
       <Calories TotalCal="$track.calories" /> 
-      <Track StartTime= "$track.date.strftime("%Y-%m-%dT%H:%M:%SZ")">
+      <Track StartTime="$track.date.strftime("%Y-%m-%dT%H:%M:%SZ")">
   	  <% for trackpoint in track.trackpoints %>
-        <pt tm="${(trackpoint.date-track.date).days * 24.0 * 3600.0 + (trackpoint.date-track.date).seconds + (trackpoint.date-track.date).microseconds / 1000000.0}" lat="$ trackpoint.latitude" lon="$trackpoint.longitude" ele="$trackpoint.altitude" hr="$trackpoint.heartrate" dist="${(trackpoint.interval/10.0) * ((trackpoint.speed * 1000.0 )/ 3600.0)}" />
+        <pt tm="$trackpoint.timeFromStart.seconds" lat="$trackpoint.latitude" lon="$trackpoint.longitude" ele="$trackpoint.altitude" hr="$trackpoint.heartrate" />
 	  <% endfor %>
       </Track>
       
       <% if track.laps %>
       <Laps>
       <% for lap in track.laps %>
-      <Lap StartTime="$lap.start.strftime("%Y-%m-%dT%H:%M:%SZ")" DurationSeconds="$lap.elapsed.seconds">
+      <Lap StartTime="$lap.start.strftime("%Y-%m-%dT%H:%M:%SZ")" DurationSeconds="$lap.duration.seconds">
       	<Distance>$lap.distance</Distance>
       	<Calories>$lap.calories</Calories>
       </Lap>
@@ -29,6 +29,6 @@
       <% endif %>
     
     </Activity>
-  <% end %>
+  <% endfor %>
   </AthleteLog>
 </FitnessWorkbook>

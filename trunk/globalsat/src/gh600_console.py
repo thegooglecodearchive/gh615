@@ -217,7 +217,7 @@ def main():
             return gh.getUnitInformation()
             
         else:
-            print "no valid argument, see README"
+            parser.error("invalid argument, try -h or see README for help")
         
 if __name__ == "__main__":
     main()

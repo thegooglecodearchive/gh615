@@ -23,7 +23,7 @@
 					<gpxdata:startPoint lat="$lap.startPoint.latitude" lon="$lap.startPoint.longitude" />
 					<gpxdata:endPoint lat="$lap.endPoint.latitude" lon="$lap.endPoint.longitude" />
 					<gpxdata:startTime>$lap.start.strftime("%Y-%m-%dT%H:%M:%SZ")</gpxdata:startTime>
-					<gpxdata:elapsedTime>$lap.elapsed.seconds</gpxdata:elapsedTime>
+					<gpxdata:elapsedTime>$lap.duration.seconds</gpxdata:elapsedTime>
 					<gpxdata:calories>$lap.calories</gpxdata:calories>
 					<gpxdata:distance>$lap.distance</gpxdata:distance>
 					

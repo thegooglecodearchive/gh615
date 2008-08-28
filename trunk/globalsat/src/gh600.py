@@ -118,9 +118,7 @@ class Point(object):
 
 
 class Trackpoint(Point):    
-    def __init__(self, latitude = 0, longitude = 0, altitude = 0, speed = 0, heartrate = 0, interval = 1, date = datetime.datetime.now()):
-        #self.latitude    = Decimal(latitude)
-        #self.longitude   = Decimal(longitude)
+    def __init__(self, latitude = 0, longitude = 0, altitude = 0, speed = 0, heartrate = 0, interval = datetime.timedelta(), date = datetime.datetime.now()):
         self.altitude    = altitude
         self.speed       = speed
         self.heartrate   = heartrate
@@ -138,7 +136,7 @@ class Trackpoint(Point):
             'altitude':   Utilities.dec2hex(self.altitude,4),
             'speed':      Utilities.dec2hex(self.speed,4),
             'heartrate':  Utilities.dec2hex(self.heartrate,2),
-            'interval':   Utilities.dec2hex(self.interval,4)
+            'interval':   Utilities.dec2hex(self.interval.microseconds/1000,4)
         }
     
     def __getitem__(self, attr):
@@ -151,14 +149,16 @@ class Trackpoint(Point):
             self.altitude  = Utilities.hex2dec(hex[16:20])
             self.speed     = Utilities.hex2dec(hex[20:24])/100
             self.heartrate = Utilities.hex2dec(hex[24:26])
-            self.interval  = Utilities.hex2dec(hex[26:30])
-                        
+            self.interval  = datetime.timedelta(seconds=Utilities.hex2dec(hex[26:30])/10.0)
+            print self.interval           
+             
             return self
         else:
             raise GH600ParseException(self.__class__.__name__, len(hex), 30)
     
     def calculateDate(self, date):
-        self.date = date + datetime.timedelta(milliseconds = (self.interval * 100)) 
+        self.date = date + self.interval
+        print self.date
 
 
 class Waypoint(Point):
@@ -240,11 +240,11 @@ class Waypoint(Point):
             raise GH600ParseException(self.__class__.__name__, len(hex), 36)
 
 class Lap(object):
-    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), elapsed = datetime.timedelta(), distance = 0, calories = 0,
+    def __init__(self, start = datetime.datetime.now(), end = datetime.datetime.now(), duration = datetime.timedelta(), distance = 0, calories = 0,
                  startPoint = Point(0,0), endPoint = Point(0,0)):
         self.start        = start
         self.end          = end
-        self.elapsed      = elapsed
+        self.duration     = duration
         self.distance     = distance
         self.calories     = calories
         
@@ -268,7 +268,7 @@ class Lap(object):
     def calculateDate(self, date):
         self.end = date + datetime.timedelta(milliseconds = (self.__until * 100))
         self.start = self.end - datetime.timedelta(milliseconds = (self.__elapsed * 100))
-        self.elapsed = self.end - self.start
+        self.duration = self.end - self.start
         
     def calculateCoordinates(self, trackpoints):
         relative_to_start = relative_to_end = {}
@@ -285,7 +285,7 @@ class Lap(object):
         
 
 class Track(object):    
-    def __init__(self, date = datetime.datetime.now(), duration = 0, distance = 0, calories = 0, topspeed = 0, trackpointCount = 0):
+    def __init__(self, date = datetime.datetime.now(), duration = datetime.timedelta(), distance = 0, calories = 0, topspeed = 0, trackpointCount = 0):
         self.date            = date
         self.duration        = duration
         self.distance        = distance
@@ -326,7 +326,7 @@ class Track(object):
     def fromHex(self, hex):
         if len(hex) == 44 or len(hex) == 48:
             self.date            = datetime.datetime(2000+Utilities.hex2dec(hex[0:2]), Utilities.hex2dec(hex[2:4]), Utilities.hex2dec(hex[4:6]), Utilities.hex2dec(hex[6:8]), Utilities.hex2dec(hex[8:10]), Utilities.hex2dec(hex[10:12]))
-            self.duration        = Utilities.hex2dec(hex[12:20])
+            self.duration        = datetime.timedelta(seconds=Utilities.hex2dec(hex[12:20]))
             self.distance        = Utilities.hex2dec(hex[20:28])
             self.calories        = Utilities.hex2dec(hex[28:32])
             self.topspeed        = Utilities.hex2dec(hex[32:36])
@@ -394,7 +394,7 @@ class TrackWithLaps(Track):
         if len(hex) == 58 or len(hex) == 62:            
             self.date            = datetime.datetime(2000+Utilities.hex2dec(hex[0:2]), Utilities.hex2dec(hex[2:4]), Utilities.hex2dec(hex[4:6]), Utilities.hex2dec(hex[6:8]), Utilities.hex2dec(hex[8:10]), Utilities.hex2dec(hex[10:12]))
             self.lapCount        = Utilities.hex2dec(hex[12:14])
-            self.duration        = Utilities.hex2dec(hex[14:22])
+            self.duration        = datetime.timedelta(Utilities.hex2dec(hex[14:22]))
             self.distance        = Utilities.hex2dec(hex[22:30])
             self.calories        = Utilities.hex2dec(hex[30:34])
             self.topspeed        = Utilities.hex2dec(hex[34:38])
@@ -614,7 +614,7 @@ class GH600(SerialInterface):
             if self.config.has_option("general", "firmware"):
                 product = {1:'GH-615', 2:'GH-625'}[self.config.getint("general", "firmware")]
             else:
-                product = self.getProductVersion()
+                product = self.getProductModel()
             
             #downcasting to a specific model
             if product == "GH-615":
@@ -705,8 +705,7 @@ class GH600(SerialInterface):
         else:    
             filepath = Utilities.getAppPrefix('waypoints.txt')
         
-        with open(Utilities.getAppPrefix('waypoint_template.txt')) as f:
-            template = Template(f.read())
+        template = Template.from_file(Utilities.getAppPrefix('waypoint_template.txt'))
         rendered = template.render(waypoints = waypoints)
 
         with open(filepath,'wt') as f:
