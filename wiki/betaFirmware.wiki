@@ -10,6 +10,6 @@ The firmware is a beta, with all associated risk. Update at your own risk.
 
 = Latest Version =
 
-[F-0TH-0C-0807311.GHX http://code.google.com/p/gh615/downloads/detail?name=F-0TH-0C-0807311.GHX]
+[http://code.google.com/p/gh615/downloads/detail?name=F-0TH-0C-0807311.GHX F-0TH-0C-0807311.GHX]
 
 If you have a newer Version, please send it in.
