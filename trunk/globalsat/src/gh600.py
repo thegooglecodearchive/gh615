@@ -149,8 +149,7 @@ class Trackpoint(Point):
             self.altitude  = Utilities.hex2dec(hex[16:20])
             self.speed     = Utilities.hex2dec(hex[20:24])/100
             self.heartrate = Utilities.hex2dec(hex[24:26])
-            self.interval  = datetime.timedelta(seconds=Utilities.hex2dec(hex[26:30])/10.0)
-            print self.interval           
+            self.interval  = datetime.timedelta(seconds=Utilities.hex2dec(hex[26:30])/10.0)       
              
             return self
         else:
@@ -158,7 +157,6 @@ class Trackpoint(Point):
     
     def calculateDate(self, date):
         self.date = date + self.interval
-        print self.date
 
 
 class Waypoint(Point):
@@ -624,14 +622,13 @@ class GH600(SerialInterface):
         
     @serial_required
     def getProductModel(self):
-        response = self._querySerial('whoAmI')
-        if response:
+        try:
+            response = self._querySerial('whoAmI')
             watch = Utilities.hex2chr(response[6:-4])
             product, model = watch[:-1], watch[-1:]
-        else: #no response received, assuming command was not understood => old firmware
-            product = "GH615"
-        self.logger.info('i am a Globalsat %s%s' % (product, model))
-        return product
+            return product
+        except GH600SerialException: #no response received, assuming command was not understood => old firmware
+            return "GH615"
                                            
     def getExportFormats(self):
         formats = []

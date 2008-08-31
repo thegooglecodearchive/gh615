@@ -61,7 +61,8 @@ def choose():
         
     elif command == "c":
         tracks = gh.getAllTracks()
-        results = gh.exportTracks(tracks,'gpx')
+        ef = ExportFormat('gpx')
+        results = ef.exportTracks(tracks, 'gpx')
         print 'exported tracks', results
         
     elif command == "d":
@@ -183,7 +184,6 @@ def main():
             tracks = gh.getTracks(options.tracks)
             ef = ExportFormat(options.format)
             ef.exportTracks(tracks, merge = options.merge, path = options.output)
-            
             
         if args[0] == "c":        
             tracks = gh.getAllTracks()
