@@ -16,12 +16,21 @@ def tracklist():
         print 'no tracks found'
     pass
 
+def prompt_format():
+    print 'available export formats:'
+    for format in gh.getExportFormats():
+        print "[%s] = %s" % (format.name, format.nicename)
+    
+    format = raw_input("Choose output format: ").strip()
+    return format
+
 def choose():
     print "\n What do you want to do?\n\
  ------TRACKS-------\n\
  [a]=get list of all tracks\n\
  [b]=export a single track\n\
- [c]=export all tracks\n\
+ [c]=export all tracks (gpx)\n\
+ [c?]=export all tracks (select format)\n\
  [d]=upload tracks\n\
  -----WAYPOINTS-----\n\
  [e]=download waypoints\n\
@@ -38,36 +47,42 @@ def choose():
         print "Getting tracklist"
         tracklist()
     
-    elif command == "b":
+    elif command.startswith("b"):
         print "Download track(s)"
-        trackId = raw_input("enter trackID(s) [space delimited] ").strip()
-        trackIds = trackId.split(' ');
-        tracks = gh.getTracks(trackIds)
+        if command == "b?":
+            tracklist()
         
-        print 'available exportFormats:'
-        for format in gh.getExportFormats():
-            print "[%s] = %s" % (format.name, format.nicename)
-        
-        format = raw_input("Choose output format: ").strip()
-        
-        merge = False
+        picks = raw_input("enter trackID(s) [space delimited] ").strip()
+        trackIds = picks.split(' ');
+
+        format = prompt_format()
         ef = ExportFormat(format)
-        if ef.hasMultiple and len(tracks) > 1:
+        merge = False
+        if ef.hasMultiple and len(trackIds) > 1:
             merge = raw_input("Do you want to merge all tracks into a single file? [y/n]: ").strip()
             merge = True if merge == "y" else False
         
+        tracks = gh.getTracks(trackIds)
         ef.exportTracks(tracks, merge = merge)
         print 'exported %d tracks' % len(tracks)
         
-    elif command == "c":
+    elif command.startswith("c"):
+        print "Export all tracks"
+        if command == "c?":
+            format = prompt_format()
+        elif command.startswith("c "):
+            format = command[2:].strip() 
+        else:
+            format = "gpx"
+        
         tracks = gh.getAllTracks()
-        ef = ExportFormat('gpx')
-        results = ef.exportTracks(tracks, 'gpx')
-        print 'exported tracks', results
+        ef = ExportFormat(format)
+        results = ef.exportTracks(tracks)
+        print 'exported %i tracks to %s' % (results, format)
         
     elif command == "d":
         print "Upload Tracks"
-        files = glob.glob(os.path.join(Utilities.getAppPrefix(),"import","*.gpx"))
+        files = glob.glob(os.path.join(Utilities.getAppPrefix(), "import", "*.gpx"))
         for i,format in enumerate(files):
             (filepath, filename) = os.path.split(format)
             #(shortname, extension) = os.path.splitext(filename)
@@ -94,7 +109,7 @@ def choose():
         print "Upload Waypoints"
         waypoints = gh.importWaypoints()        
         results = gh.setWaypoints(waypoints)
-        print 'Imported Waypoints', results
+        print 'Imported %i Waypoints' % results
         
     elif command == "gg":
         print "Delete all Tracks"
@@ -114,7 +129,7 @@ def choose():
         print "* %s trackpoints on watch" % unit['trackpoint_count']
     
     elif command == "x":
-        print gh.getNmea()
+        print prompt_format()
     
     elif command == "q":
         sys.exit()
@@ -203,7 +218,7 @@ def main():
         if args[0] == "f":
             waypoints = gh.importWaypoints(path=options.input[0])
             results = gh.setWaypoints(waypoints)
-            print 'Imported Waypoints', results
+            print 'Imported Waypoints %i' % results
             
         if args[0] == "gg":
             warning = raw_input("warning, DELETING ALL TRACKS").strip()
