@@ -13,7 +13,7 @@
 <trk>
 	<number>$i</number>
 	
-	<% if track.laps %>
+	<% if hasattr(track,laps) %>
 	<extensions>
 		<gpxdata:run>
 			<gpxdata:laps>

@@ -17,7 +17,7 @@
 	  <% endfor %>
       </Track>
       
-      <% if track.laps %>
+      <% if hasattr(track,laps) %>
       <Laps>
       <% for lap in track.laps %>
       <Lap StartTime="$lap.start.strftime("%Y-%m-%dT%H:%M:%SZ")" DurationSeconds="$lap.duration.seconds">
