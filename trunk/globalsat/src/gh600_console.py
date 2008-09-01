@@ -23,22 +23,22 @@ def prompt_format():
     
     format = raw_input("Choose output format: ").strip()
     return format
+        
 
 def choose():
     print "\n What do you want to do?\n\
  ------TRACKS-------\n\
- [a]=get list of all tracks\n\
- [b]=export a single track\n\
- [c]=export all tracks (gpx)\n\
- [c?]=export all tracks (select format)\n\
- [d]=upload tracks\n\
+ [a]  = get list of all tracks\n\
+ [b]  = export a single track | [b?] to select format or [b <format>]\n\
+ [c]  = export all tracks     | [c?] to select format or [c <format>]\n\
+ [d]  = upload tracks\n\
  -----WAYPOINTS-----\n\
- [e]=download waypoints\n\
- [f]=upload waypoints\n\
+ [e]  = download waypoints\n\
+ [f]  = upload waypoints\n\
  -----ETC-----------\n\
- [gg]=format tracks\n\
- [hh]=format waypoints\n\
- [j]=get device information\n\
+ [gg] = format tracks\n\
+ [hh] = format waypoints\n\
+ [j]  = get device information\n\
  -------------------\n\
  [q]=quit"
     command = raw_input("=>").strip()
@@ -48,14 +48,21 @@ def choose():
         tracklist()
     
     elif command.startswith("b"):
-        print "Download track(s)"
-        if command == "b?":
+        print "Export track(s)"
+        
+        if not command.startswith("b!"):
             tracklist()
+        if command == "b?":
+            format = prompt_format()
+        elif command.startswith("b "):
+            format = command[2:].strip() 
+        else:
+            format = gh.config.get("export", "default")
+            print "FYI: Exporting to default format '%s' (see config.ini)" % format
         
         picks = raw_input("enter trackID(s) [space delimited] ").strip()
         trackIds = picks.split(' ');
 
-        format = prompt_format()
         ef = ExportFormat(format)
         merge = False
         if ef.hasMultiple and len(trackIds) > 1:
@@ -64,7 +71,7 @@ def choose():
         
         tracks = gh.getTracks(trackIds)
         ef.exportTracks(tracks, merge = merge)
-        print 'exported %d tracks' % len(tracks)
+        print 'exported %i tracks' % len(tracks)
         
     elif command.startswith("c"):
         print "Export all tracks"
@@ -73,7 +80,8 @@ def choose():
         elif command.startswith("c "):
             format = command[2:].strip() 
         else:
-            format = "gpx"
+            format = gh.config.get("export", "default")
+            print "FYI: Exporting to default format '%s' (see config.ini)" % format
         
         tracks = gh.getAllTracks()
         ef = ExportFormat(format)

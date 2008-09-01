@@ -628,7 +628,7 @@ class GH600(SerialInterface):
             product, model = watch[:-1], watch[-1:]
             return product
         except GH600SerialException: #no response received, assuming command was not understood => old firmware
-            return "GH615"
+            return "GH-615"
                                            
     def getExportFormats(self):
         formats = []
