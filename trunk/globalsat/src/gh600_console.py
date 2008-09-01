@@ -50,8 +50,30 @@ def choose():
     elif command.startswith("b"):
         print "Export track(s)"
         
-        if not command.startswith("b!"):
+        if command.startswith("b!"):
+            command = command[0] + command[2:]
+        else:
             tracklist()
+        
+        picks = raw_input("enter trackID(s) [space delimited] ").strip()
+        #adds the slice notation for selecting tracks, i.e. [2:4] or [:-4] or [3]
+        if ":" in picks:
+            lower, upper = picks.split(':')
+            try:
+                lower = int(lower)
+            except ValueError:
+                lower = None
+            try:
+                upper = int(upper)
+            except ValueError:
+                upper = None
+
+            trackIds = gh.getAllTrackIds()[lower:upper]
+        elif "-" in picks:
+            trackIds = [gh.getAllTrackIds()[int(picks)]]
+        else:
+            trackIds = picks.split(' ')
+            
         if command == "b?":
             format = prompt_format()
         elif command.startswith("b "):
@@ -60,9 +82,6 @@ def choose():
             format = gh.config.get("export", "default")
             print "FYI: Exporting to default format '%s' (see config.ini)" % format
         
-        picks = raw_input("enter trackID(s) [space delimited] ").strip()
-        trackIds = picks.split(' ');
-
         ef = ExportFormat(format)
         merge = False
         if ef.hasMultiple and len(trackIds) > 1:

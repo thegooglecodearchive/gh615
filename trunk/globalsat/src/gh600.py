@@ -432,7 +432,6 @@ class ExportFormat(object):
             self.nicename    = templateConfig.get(format, 'nicename', vars={'default':format})
             self.extension   = templateConfig.get(format, 'extension', vars={'default':format})
             self.hasMultiple = templateConfig.getboolean(format, 'hasMultiple')
-            #self.template    = FailsafeTemplate(templateImport)
         else:
             self.logger.error('%s: no such export format' % format)
             raise ValueError('%s: no such export format' % format)
@@ -520,6 +519,7 @@ class SerialInterface():
         """disconnect the serial connection"""
         self.serial.close()
         self.logger.debug("serial connection closed")
+        time.sleep(self._sleep)
     
     def _writeSerial(self, command, *args, **kwargs):
         #try:
@@ -644,10 +644,12 @@ class GH600(SerialInterface):
     def getTracklist(self):
         raise NotImplemented('This is an abstract method, please instantiate a subclass')
     
-    def getAllTracks(self):
+    def getAllTrackIds(self):
         allTracks = self.getTracklist()
-        ids = [track.id for track in allTracks]
-        return self.getTracks(ids)
+        return [track.id for track in allTracks]
+    
+    def getAllTracks(self):
+        return self.getTracks(self.getAllTrackIds())
     
     @serial_required
     def getTracks(self, trackIds):
@@ -829,7 +831,7 @@ class GH615(GH600):
 
     @serial_required
     def getTracks(self, trackIds):
-        trackIds = [Utilities.dec2hex(id, 4) for id in trackIds ]
+        trackIds = [Utilities.dec2hex(str(id), 4) for id in trackIds ]
         payload = Utilities.dec2hex((len(trackIds) * 512) + 896, 4)
         numberOfTracks = Utilities.dec2hex(len(trackIds), 4) 
         checksum = Utilities.checkersum("%s%s%s" % (payload, numberOfTracks, ''.join(trackIds)))
@@ -916,7 +918,7 @@ class GH625(GH600):
         
     @serial_required
     def getTracks(self, trackIds):
-        trackIds = [Utilities.dec2hex(id, 4) for id in trackIds]
+        trackIds = [Utilities.dec2hex(str(id), 4) for id in trackIds]
         payload = Utilities.dec2hex((len(trackIds) * 512) + 896, 4)
         numberOfTracks = Utilities.dec2hex(len(trackIds), 4) 
         checksum = Utilities.checkersum("%s%s%s" % (payload, numberOfTracks, ''.join(trackIds)))
