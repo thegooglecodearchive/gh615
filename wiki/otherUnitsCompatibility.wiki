@@ -1,9 +1,8 @@
-#summary Other Globalsat Compatibility Information
+#summary Other Product Compatibility Information
 #labels Phase-QA
 
-This Software might very well be usable with other Globalsat Devices, such as the GH-601 or the DG-100. However this is pure speculation. If you have tested this software with any unit other than the GH-615, please add it to this list. Thanks.
+= compatible products =
+  * Globalsat GH615B/M
+  * Globalsat GH625B/M
 
-= Known working units =
-  * Globalsat GH615
-
-= Known not working units =
+It is not known, if Clones (such as the [http://www.canyon-tech.com/products/sports/navigation/CNS-GPS2 CNS-GPS2]) work; if you have tested, please post a comment with the outcome. Thanks.
