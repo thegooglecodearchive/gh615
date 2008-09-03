@@ -194,10 +194,10 @@ def main():
         )
         
         parser.add_option("-t", "--track", help="a track id",  action="append", dest="tracks", type="int")
-        parser.add_option("-f", "--format", help="the format to export to (default: %default)", dest="format", choices=[format['filename'] for format in gh.getExportFormats()])
+        parser.add_option("-f", "--format", help="the format to export to (default: %s)" % gh.config.get('export','default'), dest="format", choices=[format.name for format in gh.getExportFormats()])
         parser.add_option("-m", "--merge", help="merge into single file?", dest="merge", action="store_true")
         parser.add_option("-c", "--com", dest="com",  help="the comport to use")
-        parser.add_option("-fi", "--firmware", dest="firmware", type="int", choices=[1,2], help="firmware of your GH: (1 for old, 2 for new)")
+        parser.add_option("-v", "--firmware", dest="firmware", choices=["1","2"], help="firmware version of your GH: (1 for old, 2 for new)")
         
         
         parser.add_option("-i", "--input", help="input file(s)", action="append", dest="input")
@@ -210,7 +210,7 @@ def main():
         
         #set firmware version
         if options.firmware:
-            gh.config.set('general', 'firmware', options.firmware)
+            gh.config.set('general', 'firmware', int(options.firmware))
         
         #set serial port
         if options.com:
