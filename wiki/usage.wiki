@@ -35,7 +35,7 @@ execute with the following arguments:
   * *-o, --output*: path to directory where exported files will be stored (default: /export)
   * *-i, --input*: files used for input (either formatted waypoints.txt of gpx file)
    
-  * *-fi, --firmware*: set to 1 if you have the old firmware without lap support (originally GH-615); 2 for the new firmware with lap-support  (overwrites the value specified in conig.ini)
+  * *-v, --firmware*: set to 1 if you have the old firmware without lap support (originally GH-615); 2 for the new firmware with lap-support  (overwrites the value specified in conig.ini)
   * *-c, --com*: set the comport that will be used for connecting (overwrites the value specified in conig.ini)
 
 = examples =
