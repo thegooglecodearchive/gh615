@@ -337,7 +337,7 @@ class Track(object):
             raise GH600ParseException(self.__class__.__name__, len(hex), 44)
         
     def addTrackpointsFromHex(self, hex):        
-        trackpoints = Utilities.chop(hex,30)
+        trackpoints = Utilities.chop(hex, 30)
         for trackpoint in trackpoints: 
             parsedTrackpoint = Trackpoint().fromHex(trackpoint)
             
@@ -931,7 +931,7 @@ class GH625(GH600):
         initializeNewTrack = True
         
         while True:
-            data = self._readSerial()
+            data = self._readSerial(2075)
             time.sleep(2)
             
             if data != '8A000000':
