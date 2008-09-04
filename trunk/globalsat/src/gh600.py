@@ -396,13 +396,14 @@ class TrackWithLaps(Track):
             self.distance        = Utilities.hex2dec(hex[22:30])
             self.calories        = Utilities.hex2dec(hex[30:34])
             self.topspeed        = Utilities.hex2dec(hex[34:38])
-            #self.unknown         = Utilities.hex2dec(hex[38:42])
+            #self.unknown        = Utilities.hex2dec(hex[38:42])
             self.trackpointCount = Utilities.hex2dec(hex[42:50])
-            #self.unknown2        = Utilities.hex2dec(hex[50:54])
-            #self.unknown3        = Utilities.hex2dec(hex[54:58])
+            #self.unknown2       = Utilities.hex2dec(hex[50:54])
+            #self.number         = Utilities.hex2dec(hex[58:62])
                 
             if len(hex) == 62:
-                self.id = Utilities.hex2dec(hex[58:62])
+                self.id = Utilities.hex2dec(hex[54:58])
+                #self.id = Utilities.hex2dec(hex[58:62])
             return self
         else:
             raise GH600ParseException(self.__class__.__name__, len(hex), 58)
