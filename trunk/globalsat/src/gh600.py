@@ -397,7 +397,8 @@ class TrackWithLaps(Track):
             self.calories        = Utilities.hex2dec(hex[30:34])
             self.topspeed        = Utilities.hex2dec(hex[34:38])
             #self.unknown        = Utilities.hex2dec(hex[38:42])
-            self.trackpointCount = Utilities.hex2dec(hex[42:50])
+            #self.trackpointCount = Utilities.hex2dec(hex[42:50])
+            self.trackpointCount = Utilities.hex2dec(hex[50:54])
             #self.unknown2       = Utilities.hex2dec(hex[50:54])
             #self.number         = Utilities.hex2dec(hex[58:62])
                 
@@ -845,7 +846,7 @@ class GH615(GH600):
         initializeNewTrack = True
         
         while True:
-            data = self._readSerial()
+            data = self._readSerial(2075)
             time.sleep(2)
             
             if data != '8A000000':
@@ -861,7 +862,7 @@ class GH615(GH600):
                     #remeber last trackpoint
                     last = Utilities.hex2dec(data[54:58])
                     #check if last segment of track
-                    if len(data) < 4140:
+                    if len(data) < 4150:
                         tracks.append(track)
                         last = -1
                         initializeNewTrack = True
@@ -947,11 +948,12 @@ class GH625(GH600):
                     self._writeSerial('requestNextTrackSegment')
                 
                 elif Utilities.hex2dec(data[60:64]) == last + 1:
-                    self.logger.debug('adding trackpoints %d-%d' % (Utilities.hex2dec(data[60:64]), Utilities.hex2dec(data[64:68])))
+                    self.logger.debug('adding trackpoints %i-%i of %i' % (Utilities.hex2dec(data[60:64]), Utilities.hex2dec(data[64:68]), track.trackpointCount))
                     track.addTrackpointsFromHex(data[68:-2])
                     last = Utilities.hex2dec(data[64:68])
                     #check if last segment of track
-                    if len(data) < 4140:
+                                        
+                    if last + 1 == track.trackpointCount:
                         tracks.append(track)
                         last = -1
                         initializeNewTrack = True

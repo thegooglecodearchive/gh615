@@ -105,7 +105,7 @@ def choose():
         tracks = gh.getAllTracks()
         ef = ExportFormat(format)
         results = ef.exportTracks(tracks)
-        print 'exported %i tracks to %s' % (results, format)
+        print 'exported %i tracks to %s' % (len(tracks), format)
         
     elif command == "d":
         print "Upload Tracks"
