@@ -38,7 +38,7 @@ def choose():
  -----ETC-----------\n\
  [gg] = format tracks\n\
  [hh] = format waypoints\n\
- [j]  = get device information\n\
+ [i]  = get device information\n\
  -------------------\n\
  [q]=quit"
     command = raw_input("=>").strip()
