@@ -584,7 +584,7 @@ class GH600(SerialInterface):
         'formatTracks'                    : '0200037900641E',
         'getWaypoints'                    : '0200017776',
         'setWaypoints'                    : '02%(payload)s76%(numberOfWaypoints)s%(waypoints)s%(checksum)s',
-        'formatWaypoints'                 : '0200037500642',
+        'formatWaypoints'                 : '02000375006412',
         'unitInformation'                 : '0200018584',
         'whoAmI'                          : '020001BFBE',
         'unknown'                         : '0200018382'
@@ -631,6 +631,14 @@ class GH600(SerialInterface):
             return product
         except GH600SerialException: #no response received, assuming command was not understood => old firmware
             return "GH-615"
+        
+    @serial_required
+    def testConnectivity(self):
+        try:
+            self._querySerial('whoAmI')
+            return True
+        except:
+            return False
                                            
     def getExportFormats(self):
         formats = []
@@ -746,6 +754,7 @@ class GH600(SerialInterface):
             return waypointsUpdated
         else:
             self.logger.error('error uploading waypoints')
+            return False
 
     @serial_required
     def formatWaypoints(self):
