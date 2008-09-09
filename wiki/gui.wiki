@@ -1,0 +1,14 @@
+#summary The Gui
+#labels Phase-Design
+
+= Details =
+
+The Gui is a web frontend to waypoint editing functions. Starting the Gui means starting a webserver at 127.0.0.1 (localhost) on port 600.
+
+
+= Screenshots =
+
+http://speigei.googlepages.com/gui_index.gif
+
+http://speigei.googlepages.com/gui_edit.gif
+
