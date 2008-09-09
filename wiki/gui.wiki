@@ -1,5 +1,5 @@
 #summary The Gui
-#labels Phase-Design
+#labels Phase-Design,Featured
 
 = Details =
 
@@ -11,4 +11,3 @@ The Gui is a web frontend to waypoint editing functions. Starting the Gui means 
 http://speigei.googlepages.com/gui_index.gif
 
 http://speigei.googlepages.com/gui_edit.gif
-
