@@ -1,6 +1,9 @@
 #summary the changelog
 #labels Featured,Phase-QA
 
+= Build 186 =
+  * added a webfrontend for editing waypoints
+
 = Build 168 =
   * fixed several GH615 compatibility issues (issue21)
   * changed UI to ask less question while being more flexible (issue22)(thanks Zingo)
