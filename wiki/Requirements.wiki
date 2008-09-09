@@ -5,8 +5,10 @@
 
 To use the python sources you need to have the following libraries installed
   * [http://python.org/ Python 2.5]
-  * [http://pyserial.sourceforge.net/ pySerial]
+  * [http://pyserial.sourceforge.net pySerial]
     * win32all extensions on Windows
+  * [http://www.cherrypy.org cherrypy] for the GUI
+  
 
 = other code used =
 
