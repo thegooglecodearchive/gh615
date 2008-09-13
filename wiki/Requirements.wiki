@@ -6,8 +6,9 @@
 To use the python sources you need to have the following libraries installed
   * [http://python.org/ Python 2.5]
   * [http://pyserial.sourceforge.net pySerial]
-    * win32all extensions on Windows
-  * [http://www.cherrypy.org cherrypy] for the GUI
+  * [http://pytz.sourceforge.net/ pytz]
+  * [http://www.cherrypy.org cherrypy] (3.1 or later) for the GUI
+
   
 
 = other code used =
